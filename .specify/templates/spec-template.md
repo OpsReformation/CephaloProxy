@@ -1,9 +1,11 @@
 # Feature Specification: [FEATURE NAME]
 
-**Feature Branch**: `[###-feature-name]`  
-**Created**: [DATE]  
-**Status**: Draft  
+**Feature Branch**: `[###-feature-name]`
+**Created**: [DATE]
+**Status**: Draft
 **Input**: User description: "$ARGUMENTS"
+
+**Constitutional Compliance**: All features must comply with CephaloProxy Constitution v1.0.0 (see `.specify/memory/constitution.md`)
 
 ## User Scenarios & Testing *(mandatory)*
 

@@ -157,6 +157,17 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
 
+## Phase N+1: Constitutional Compliance Validation
+
+**Purpose**: Ensure all constitutional requirements are met before release
+
+- [ ] TXXX Container-First: Verify Dockerfile, health checks, graceful shutdown
+- [ ] TXXX Security: Verify non-root user, secret injection, TLS configuration
+- [ ] TXXX Observability: Verify structured logs, metrics endpoint, health endpoints
+- [ ] TXXX Performance: Run load tests to verify P95 < 50ms, 1000 req/s minimum
+- [ ] TXXX Squid Integration: Verify config validation, version pinning, log aggregation
+- [ ] TXXX CI/CD: Vulnerability scanning, automated tests for all constitutional requirements
+
 ---
 
 ## Dependencies & Execution Order

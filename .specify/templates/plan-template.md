@@ -31,7 +31,19 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify compliance with CephaloProxy Constitution v1.0.0:
+
+- [ ] **Container-First Architecture**: Feature deployable as Docker container with health checks, graceful shutdown, and minimal host dependencies
+- [ ] **Test-First Development**: Tests written and approved BEFORE implementation begins
+- [ ] **Squid Proxy Integration**: If modifying Squid config, changes are declarative, version-controlled, and testable
+- [ ] **Security by Default**: Authentication/authorization enforced, secrets injected securely, container runs as non-root
+- [ ] **Observable by Default**: Structured logging, Prometheus metrics, health endpoints included
+
+**Additional Compliance**:
+
+- [ ] Security Requirements: TLS 1.2+, audit logging, vulnerability scanning in CI/CD
+- [ ] Performance Standards: P95 < 50ms overhead, 1000 req/s minimum, <512MB memory
+- [ ] Observability Requirements: JSON logs with request IDs, metrics endpoint, /health and /ready endpoints
 
 ## Project Structure
 
