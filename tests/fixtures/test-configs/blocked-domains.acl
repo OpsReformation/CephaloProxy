@@ -1,0 +1,7 @@
+# Test ACL file for blocked domains
+# Format: One domain per line, leading dot matches subdomains
+
+.facebook.com
+.twitter.com
+.instagram.com
+.tiktok.com

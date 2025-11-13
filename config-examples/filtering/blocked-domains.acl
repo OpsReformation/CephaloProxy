@@ -1,0 +1,37 @@
+# Example: Blocked Domains ACL
+# One domain per line. Leading dot (.) matches all subdomains.
+
+# Social Media
+.facebook.com
+.twitter.com
+.instagram.com
+.tiktok.com
+.snapchat.com
+.linkedin.com
+.reddit.com
+
+# Streaming Services
+.youtube.com
+.netflix.com
+.twitch.tv
+.hulu.com
+
+# Gaming
+.steampowered.com
+.epicgames.com
+
+# News (optional - customize per policy)
+# .cnn.com
+# .foxnews.com
+
+# Adult Content (example - add your own)
+# .example-adult-site.com
+
+# Malware/Phishing (example - use reputable block lists)
+# .malicious-site.com
+
+# Notes:
+# - Leading dot matches all subdomains (e.g., .facebook.com matches www.facebook.com, m.facebook.com)
+# - No leading dot matches exact domain only
+# - Lines starting with # are comments
+# - Empty lines are ignored

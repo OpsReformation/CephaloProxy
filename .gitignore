@@ -1,0 +1,37 @@
+# Container artifacts
+.dockerignore
+*.tar
+*.tar.gz
+build/
+dist/
+
+# Cache and logs
+*.log
+.cache/
+*.tmp
+*.swp
+
+# Environment and secrets
+.env*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+
+# IDE and OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.iml
+
+# Test artifacts
+tests/fixtures/test-certs/*.pem
+tests/fixtures/test-certs/*.key
+coverage/
+*.test
+
+# Temporary files
+tmp/
+temp/
