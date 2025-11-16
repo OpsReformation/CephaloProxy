@@ -1,8 +1,7 @@
 # Research: Squid Proxy Container
 
-**Feature**: 001-squid-proxy-container
-**Date**: 2025-11-11
-**Purpose**: Resolve technical clarifications for Gentoo-based Squid container with SSL-bump support
+**Feature**: 001-squid-proxy-container **Date**: 2025-11-11 **Purpose**: Resolve
+technical clarifications for Gentoo-based Squid container with SSL-bump support
 
 ## Research Tasks
 
@@ -11,6 +10,7 @@
 **Decision**: Pin to Squid 6.x (latest stable)
 
 **Rationale**:
+
 - Squid 6.x is the current stable branch with active security support
 - Includes mature SSL-bump implementation (ssl_crtd)
 - Well-documented in Gentoo Portage
@@ -18,31 +18,46 @@
 - Long-term support expected through 2026+
 
 **Alternatives Considered**:
+
 - Squid 5.x: Older stable, but approaching EOL
 - Squid 7.x: Development branch, not suitable for production pinning
-- Specific version pinning (e.g., 6.6): Will use Portage slot pinning (net-proxy/squid:6) for major version while allowing minor/patch updates for security
+- Specific version pinning (e.g., 6.6): Will use Portage slot pinning
+  (net-proxy/squid:6) for major version while allowing minor/patch updates for
+  security
 
-**Implementation**: Use Portage package.accept_keywords and package.mask to pin `=net-proxy/squid-6*` in Dockerfile
+**Implementation**: Use Portage package.accept_keywords and package.mask to pin
+`=net-proxy/squid-6*` in Dockerfile
 
----
+
 
 ### 2. Health Check Implementation Approach
 
 **Decision**: Standalone Python HTTP server (healthcheck.py)
 
 **Rationale**:
-- Squid does not expose native HTTP health check endpoints suitable for orchestrators
-- Squid's cachemgr.cgi requires configuration and is not designed for liveness/readiness checks
-- Lightweight Python HTTP server adds <10MB to image, minimal runtime overhead (<5MB memory)
-- Can perform actual Squid health validation (check process, test cache dirs, validate config)
-- Provides separate /health (liveness) and /ready (readiness) semantics required by Kubernetes/OpenShift
+
+- Squid does not expose native HTTP health check endpoints suitable for
+  orchestrators
+- Squid's cachemgr.cgi requires configuration and is not designed for
+  liveness/readiness checks
+- Lightweight Python HTTP server adds <10MB to image, minimal runtime overhead
+  (<5MB memory)
+- Can perform actual Squid health validation (check process, test cache dirs,
+  validate config)
+- Provides separate /health (liveness) and /ready (readiness) semantics required
+  by Kubernetes/OpenShift
 
 **Alternatives Considered**:
-- Shell script with nc (netcat): Limited HTTP protocol support, harder to parse requests for /health vs /ready
-- Squid cachemgr: Not designed for this use case, security implications of exposing management interface
-- External sidecar container: Adds deployment complexity, violates single-container principle
+
+- Shell script with nc (netcat): Limited HTTP protocol support, harder to parse
+  requests for /health vs /ready
+- Squid cachemgr: Not designed for this use case, security implications of
+  exposing management interface
+- External sidecar container: Adds deployment complexity, violates
+  single-container principle
 
 **Implementation**:
+
 ```python
 # healthcheck.py (simplified example)
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -77,25 +92,32 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 HTTPServer(('', 8080), HealthCheckHandler).serve_forever()
 ```
 
----
+
 
 ### 3. Container Testing Framework
 
-**Decision**: Shell-based integration tests (bash/bats) with Docker Compose for fixtures
+**Decision**: Shell-based integration tests (bash/bats) with Docker Compose for
+fixtures
 
 **Rationale**:
-- Container testing requires Docker runtime - shell scripts are simplest approach
+
+- Container testing requires Docker runtime - shell scripts are simplest
+  approach
 - bats (Bash Automated Testing System) provides structured test framework
-- Docker Compose allows multi-container test scenarios (proxy + client + upstream server)
+- Docker Compose allows multi-container test scenarios (proxy + client +
+  upstream server)
 - No additional language dependencies in CI/CD pipeline
 - Easy to run locally: `./tests/integration/test_basic_proxy.sh`
 
 **Alternatives Considered**:
-- pytest with docker-py: Adds Python dependency, more complex for simple container tests
+
+- pytest with docker-py: Adds Python dependency, more complex for simple
+  container tests
 - Go-based container testing (testcontainers): Requires Go toolchain in CI
 - Dockerfile RUN tests: Cannot test runtime behavior, volume mounts, networking
 
 **Implementation Pattern**:
+
 ```bash
 #!/usr/bin/env bats
 # tests/integration/test_basic_proxy.sh
@@ -115,20 +137,26 @@ HTTPServer(('', 8080), HealthCheckHandler).serve_forever()
 }
 ```
 
----
+
 
 ### 4. Gentoo Portage Best Practices for Containers
 
 **Research Finding**: Minimal Gentoo container build strategy
 
 **Key Practices**:
-1. **Multi-stage builds**: Compile in builder stage, copy binaries to runtime stage
+
+1. **Multi-stage builds**: Compile in builder stage, copy binaries to runtime
+   stage
 2. **Portage cleanup**: Remove `/var/db/repos/gentoo` after package installation
-3. **Package selection**: Use `--oneshot` for build dependencies to avoid world file bloat
-4. **Binary packages**: Consider using binpkgs for common deps (OpenSSL) to speed rebuilds
-5. **Layering**: Group related packages in single RUN commands to minimize layers
+3. **Package selection**: Use `--oneshot` for build dependencies to avoid world
+   file bloat
+4. **Binary packages**: Consider using binpkgs for common deps (OpenSSL) to
+   speed rebuilds
+5. **Layering**: Group related packages in single RUN commands to minimize
+   layers
 
 **Example Dockerfile Structure**:
+
 ```dockerfile
 # Stage 1: Builder
 FROM gentoo/stage3:latest AS builder
@@ -150,25 +178,33 @@ COPY --from=builder /usr/lib64/squid /usr/lib64/squid
 # ... copy necessary runtime files only
 ```
 
----
+
 
 ### 5. OpenShift Random UID/GID Support
 
-**Research Finding**: OpenShift security context constraints (SCC) and arbitrary UIDs
+**Research Finding**: OpenShift security context constraints (SCC) and arbitrary
+UIDs
 
 **Key Requirements**:
-1. **No hardcoded UID**: OpenShift assigns random UID in range 1000000000-2000000000
-2. **GID 0 (root group)**: OpenShift always assigns GID 0, but without root privileges
-3. **Directory permissions**: All writable paths must be group-writable (chmod g+w)
+
+1. **No hardcoded UID**: OpenShift assigns random UID in range
+   1000000000-2000000000
+2. **GID 0 (root group)**: OpenShift always assigns GID 0, but without root
+   privileges
+3. **Directory permissions**: All writable paths must be group-writable (chmod
+   g+w)
 4. **Entrypoint flexibility**: Must not assume specific UID in scripts
 
 **Implementation Strategy**:
+
 - Set USER 1000 in Dockerfile (ignored by OpenShift, used by Docker/Podman)
-- Make all data directories group-writable: `/var/spool/squid`, `/var/log/squid`, `/tmp`
+- Make all data directories group-writable: `/var/spool/squid`,
+  `/var/log/squid`, `/tmp`
 - Use `chgrp -R 0` and `chmod -R g=u` for writable paths
 - Entrypoint script detects UID at runtime: `id -u` and adjusts behavior
 
 **Example Entrypoint Pattern**:
+
 ```bash
 #!/bin/bash
 # entrypoint.sh
@@ -194,13 +230,14 @@ fi
 exec squid -N  # -N: no daemon mode (foreground)
 ```
 
----
+
 
 ### 6. Squid SSL-Bump Compilation Flags
 
 **Research Finding**: Required USE flags and dependencies for SSL-bump in Gentoo
 
 **Portage Configuration**:
+
 ```bash
 # /etc/portage/package.use/squid
 net-proxy/squid ssl ssl-crtd
@@ -211,6 +248,7 @@ net-proxy/squid ssl ssl-crtd
 ```
 
 **Squid Configuration Requirements**:
+
 - `ssl_crtd` helper program for dynamic certificate generation
 - SSL database directory: `/var/lib/squid/ssl_db`
 - Must initialize SSL DB: `ssl_crtd -c -s /var/lib/squid/ssl_db`
@@ -221,7 +259,7 @@ squid -v | grep -i ssl
 # Expected output: --enable-ssl --enable-ssl-crtd
 ```
 
----
+
 
 ## Summary of Decisions
 
@@ -237,6 +275,7 @@ squid -v | grep -i ssl
 ## Next Steps
 
 Phase 1 artifacts to generate:
+
 1. **data-model.md**: Configuration file structures, volume mount specifications
 2. **contracts/**: Health check API specifications (HTTP endpoints)
 3. **quickstart.md**: Quick deployment guide for Docker, Kubernetes, OpenShift

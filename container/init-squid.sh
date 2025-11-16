@@ -57,18 +57,17 @@ fi
 # SSL Database Initialization (for SSL-bump)
 # ============================================================================
 
-# Check if SSL-bump is enabled by looking for ssl_crtd configuration
-if [ -f /etc/squid/squid.conf ] && grep -q "ssl_crtd" /etc/squid/squid.conf; then
+# Check if SSL-bump is enabled by looking for sslcrtd_program configuration
+if [ -f /etc/squid/squid.conf ] && grep -q "sslcrtd_program" /etc/squid/squid.conf; then
     log_info "SSL-bump support detected, initializing SSL certificate database..."
-
-    # Create SSL DB directory if it doesn't exist
-    mkdir -p "$SSL_DB_DIR"
-    chmod 750 "$SSL_DB_DIR"
 
     # Initialize SSL database if not already done
     if [ ! -d "$SSL_DB_DIR/certs" ]; then
         log_info "Creating SSL certificate database..."
-        /usr/lib64/squid/ssl_crtd -c -s "$SSL_DB_DIR" 2>&1 || {
+        # Note: Squid 6.x uses security_file_certgen instead of ssl_crtd
+        # -M parameter is required (memory size for cache)
+        # The tool creates the directory itself, so don't pre-create it
+        /usr/libexec/squid/security_file_certgen -c -s "$SSL_DB_DIR" -M 4MB 2>&1 || {
             log_error "Failed to initialize SSL certificate database"
             exit 1
         }

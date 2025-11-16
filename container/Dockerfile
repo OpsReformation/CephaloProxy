@@ -25,7 +25,6 @@ RUN mkdir -p /etc/portage/package.accept_keywords && \
 
 # Update Portage and install dependencies
 RUN emerge --oneshot --quiet-build dev-libs/openssl
-    # emerge --oneshot --quiet-build sys-devel/gcc dev-libs/openssl
 
 # Install Squid with SSL-bump support
 RUN emerge --quiet-build net-proxy/squid && \
@@ -72,10 +71,11 @@ COPY --from=builder /usr/lib64/libpython3.11.so* /usr/lib64/
 
 # Create Squid directories with correct ownership
 # UID 1000 for Docker/Podman, GID 0 for OpenShift arbitrary UID support
+# Note: /var/lib/squid/ssl_db is created by security_file_certgen, not pre-created here
 RUN mkdir -p \
     /var/spool/squid \
     /var/log/squid \
-    /var/lib/squid/ssl_db \
+    /var/lib/squid \
     /var/run/squid \
     /var/cache/squid \
     /etc/squid/conf.d \

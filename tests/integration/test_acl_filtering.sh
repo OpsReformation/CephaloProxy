@@ -109,7 +109,7 @@ teardown() {
     sleep 10
 
     # Test multiple allowed domains
-    for domain in "example.com" "example.org" "google.com"; do
+    for domain in "example.com" "example.org" "www.google.com"; do
         run curl -x "http://localhost:$PROXY_PORT" \
             -s \
             -o /dev/null \

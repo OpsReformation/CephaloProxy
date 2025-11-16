@@ -3,23 +3,30 @@
 **Goal**: Get a working Squid proxy container running in under 15 minutes
 
 **Prerequisites**:
+
 - Docker or Podman installed
 - Basic understanding of HTTP proxies
 - (Optional) Kubernetes/OpenShift cluster for orchestrated deployment
 
----
+
 
 ## Quick Start Options
 
 Choose your deployment scenario:
 
-1. [**Basic HTTP Proxy (5 minutes)**](#1-basic-http-proxy) - Default configuration, no volumes
-2. [**Traffic Filtering with ACLs (10 minutes)**](#2-traffic-filtering-with-acls) - Block specific domains
-3. [**SSL-Bump HTTPS Caching (15 minutes)**](#3-ssl-bump-https-caching) - Decrypt and cache HTTPS
-4. [**Kubernetes Deployment (10 minutes)**](#4-kubernetes-deployment) - Deploy to K8s cluster
-5. [**OpenShift Deployment (10 minutes)**](#5-openshift-deployment) - Deploy to OpenShift with SCC
+1. [**Basic HTTP Proxy (5 minutes)**](#1-basic-http-proxy) - Default
+   configuration, no volumes
+2.
+   [**Traffic Filtering with ACLs (10 minutes)**](#2-traffic-filtering-with-acls)
+   - Block specific domains
+3. [**SSL-Bump HTTPS Caching (15 minutes)**](#3-ssl-bump-https-caching) -
+   Decrypt and cache HTTPS
+4. [**Kubernetes Deployment (10 minutes)**](#4-kubernetes-deployment) - Deploy
+   to K8s cluster
+5. [**OpenShift Deployment (10 minutes)**](#5-openshift-deployment) - Deploy to
+   OpenShift with SCC
 
----
+
 
 ## 1. Basic HTTP Proxy
 
@@ -57,12 +64,13 @@ docker logs squid-proxy
 ```
 
 **Expected behavior**:
+
 - Container starts in < 10 seconds
 - HTTP requests proxied successfully
 - Health checks return 200 OK
 - Logs show "Accepting HTTP socket connections"
 
----
+
 
 ## 2. Traffic Filtering with ACLs
 
@@ -133,17 +141,20 @@ curl -x http://localhost:3128 -I http://facebook.com
 ```
 
 **Expected behavior**:
+
 - Allowed domains return 200 OK
 - Blocked domains return 403 Forbidden
 - Logs show "TCP_DENIED" for blocked requests
 
----
+
 
 ## 3. SSL-Bump HTTPS Caching
 
-**Use Case**: Cache HTTPS traffic to reduce bandwidth (requires client trust of CA)
+**Use Case**: Cache HTTPS traffic to reduce bandwidth (requires client trust of
+CA)
 
-⚠️ **Security Warning**: SSL-bump decrypts HTTPS traffic. Only use in controlled environments where you control client trust stores.
+⚠️ **Security Warning**: SSL-bump decrypts HTTPS traffic. Only use in controlled
+environments where you control client trust stores.
 
 ### Step 1: Generate CA Certificate
 
@@ -175,8 +186,8 @@ http_port 3128 ssl-bump \
   generate-host-certificates=on \
   dynamic_cert_mem_cache_size=4MB
 
-# SSL certificate database
-sslcrtd_program /usr/lib64/squid/ssl_crtd -s /var/lib/squid/ssl_db -M 4MB
+# SSL certificate database (Squid 6.x uses security_file_certgen)
+sslcrtd_program /usr/libexec/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 4MB
 sslcrtd_children 5
 
 # SSL bumping rules
@@ -243,12 +254,13 @@ time curl -x http://localhost:3128 https://example.com
 ```
 
 **Expected behavior**:
+
 - HTTPS requests succeed
 - Second request faster (cache hit)
 - Logs show "TCP_HIT" for cached content
 - Cache hit rate > 40% for repeated requests
 
----
+
 
 ## 4. Kubernetes Deployment
 
@@ -363,11 +375,12 @@ kubectl port-forward svc/squid-proxy 3128:3128 8080:8080
 curl -x http://localhost:3128 -I http://example.com
 ```
 
----
+
 
 ## 5. OpenShift Deployment
 
-**Use Case**: Deploy to OpenShift with Security Context Constraints (arbitrary UID/GID)
+**Use Case**: Deploy to OpenShift with Security Context Constraints (arbitrary
+UID/GID)
 
 ### Step 1: Create Project
 
@@ -499,7 +512,7 @@ oc port-forward svc/squid-proxy 3128:3128
 curl -x http://localhost:3128 -I http://example.com
 ```
 
----
+
 
 ## Troubleshooting
 
@@ -564,16 +577,17 @@ docker exec squid-proxy df -h /var/spool/squid
 docker exec squid-proxy squid -f /etc/squid/squid.conf -k check
 ```
 
----
+
 
 ## Next Steps
 
 - **Production Deployment**: Review `docs/deployment.md` for best practices
-- **Configuration Reference**: See `docs/configuration.md` for all Squid directives
+- **Configuration Reference**: See `docs/configuration.md` for all Squid
+  directives
 - **Monitoring**: Set up Prometheus metrics collection (future feature)
 - **Security Hardening**: Review SSL/TLS settings, ACL rules, and audit logging
 
----
+
 
 ## Quick Reference
 

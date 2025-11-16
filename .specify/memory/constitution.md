@@ -16,6 +16,16 @@ Templates Status:
   ✅ .specify/templates/spec-template.md - Aligned with test-first and container requirements
   ✅ .specify/templates/tasks-template.md - Aligned with TDD workflow and observability tasks
 Follow-up TODOs: None - all placeholders resolved
+
+AMENDMENT HISTORY
+=================
+Version 1.1.0 (2025-11-15):
+  - Modified: Observable by Default principle - clarified Squid native logging acceptable
+  - Modified: Structured Logs requirement - Squid formats accepted alongside JSON
+  - Rationale: Squid's mature logging ecosystem provides industry-standard observability;
+               mandating JSON wrapper adds complexity without proportional value for v1.0
+  - Impact: Removes blocking issue for MVP release, defers JSON logging to future enhancement
+  - Findings Addressed: C2, D2 from specification analysis report
 -->
 
 # CephaloProxy Constitution
@@ -84,6 +94,8 @@ Observability is mandatory for production readiness:
 
 **Rationale**: Proxies are critical path infrastructure. Observability enables debugging, capacity planning, and rapid incident response.
 
+**Note**: For Squid-based proxies, native Squid logging formats (access.log, cache.log) configured per industry best practices are acceptable alternatives to JSON structured logging, provided they include sufficient detail for operational debugging and security audit trails.
+
 ## Security Requirements
 
 CephaloProxy MUST enforce the following security standards:
@@ -110,7 +122,7 @@ CephaloProxy MUST meet these performance requirements:
 
 CephaloProxy MUST provide:
 
-- **Structured Logs**: JSON format with fields: timestamp, level, request_id, source_ip, destination, method, status_code, latency_ms, cache_status
+- **Structured Logs**: For Squid-based proxies, native Squid access.log and cache.log formats configured per industry standards are acceptable. Logs MUST include: timestamp, source_ip, destination, method, status_code, bytes, latency_ms, cache_status (HIT/MISS/DENIED). JSON format is preferred but not required for Squid integration.
 - **Metrics**: Exposed on `/metrics` endpoint:
   - `cephaloproxy_requests_total{method,status,cache_status}`
   - `cephaloproxy_request_duration_seconds{method,status}`
@@ -138,4 +150,4 @@ This constitution supersedes all other development practices and serves as the s
 - Any complexity or deviation MUST be explicitly justified in plan documentation
 - Automated tests MUST validate security, performance, and observability requirements
 
-**Version**: 1.0.0 | **Ratified**: 2025-11-11 | **Last Amended**: 2025-11-11
+**Version**: 1.1.0 | **Ratified**: 2025-11-11 | **Last Amended**: 2025-11-15
