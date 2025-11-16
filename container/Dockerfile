@@ -4,12 +4,15 @@
 # =============================================================================
 # Stage 0: Portage
 # =============================================================================
-FROM gentoo/portage:latest AS portage
+FROM gentoo/portage:20251116 AS portage
 
 # =============================================================================
 # Stage 1: Builder - Compile Squid with SSL-bump support and Python
 # =============================================================================
-FROM gentoo/stage3:latest AS builder
+FROM gentoo/stage3:20251110 AS builder
+
+# Set shell options for safer scripting
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Copy Portage repository
 COPY --from=portage /var/db/repos/gentoo /var/db/repos/gentoo
@@ -31,16 +34,14 @@ RUN emerge --quiet-build net-proxy/squid && \
     # Verify SSL-bump support compiled
     squid -v | grep -i ssl
 
-# Install Python for health check server
-RUN emerge --oneshot --quiet-build dev-lang/python:3.11
-
-# Cleanup build artifacts to reduce image size
-RUN rm -rf /var/db/repos/gentoo /var/cache/distfiles/* /tmp/* /var/tmp/*
+# Install Python for health check server and cleanup in same layer
+RUN emerge --oneshot --quiet-build dev-lang/python:3.11 && \
+    rm -rf /var/db/repos/gentoo /var/cache/distfiles/* /var/cache/binpkgs/* /tmp/* /var/tmp/*
 
 # =============================================================================
 # Stage 2: Runtime - Minimal runtime image
 # =============================================================================
-FROM gentoo/stage3:latest
+FROM gentoo/stage3:20251110
 
 # Copy Squid binaries and libraries from builder
 COPY --from=builder /usr/sbin/squid /usr/sbin/squid
