@@ -123,7 +123,7 @@ teardown() {
     # Check logs for successful request
     run docker logs "$CONTAINER_NAME"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "example.com" ]]
+    [[ "$output" =~ example.com ]]
 
     # Cleanup
     teardown

@@ -31,10 +31,8 @@ log_info "Running as UID:${CURRENT_UID} GID:${CURRENT_GID}"
 # Configuration paths
 SQUID_CONF="/etc/squid/squid.conf"
 DEFAULT_CONF="/etc/squid/squid.conf.default"
-SQUID_CONF_DIR="/etc/squid/conf.d"
 SSL_CERT_DIR="/etc/squid/ssl_cert"
 CACHE_DIR="/var/spool/squid"
-LOG_DIR="/var/log/squid"
 
 # Environment variables with defaults
 SQUID_PORT=${SQUID_PORT:-3128}
@@ -139,7 +137,7 @@ shutdown() {
     squid -k shutdown 2>/dev/null || true
 
     # Wait up to 30 seconds for Squid to finish
-    for i in {1..30}; do
+    for _ in {1..30}; do
         if ! pgrep -x squid >/dev/null; then
             log_info "Squid shutdown complete"
             break
@@ -174,4 +172,4 @@ log_info "Cache directory: $CACHE_DIR"
 log_info "Log level: $LOG_LEVEL"
 
 # Start Squid in foreground mode (-N) for container compatibility
-exec squid -f "$ACTIVE_CONFIG" -N -d $LOG_LEVEL
+exec squid -f "$ACTIVE_CONFIG" -N -d "$LOG_LEVEL"

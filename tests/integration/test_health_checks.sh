@@ -151,7 +151,7 @@ teardown() {
     sleep 10
 
     # Send 10 concurrent requests
-    for i in {1..10}; do
+    for _ in {1..10}; do
         curl -s "http://localhost:$HEALTH_PORT/health" > /dev/null &
     done
     wait

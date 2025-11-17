@@ -30,7 +30,6 @@ log_error() {
 # Check if cache directory is writable
 if [ -d "$CACHE_DIR" ] && [ -w "$CACHE_DIR" ]; then
     log_info "Using persistent cache: $CACHE_DIR"
-    USING_PERSISTENT=true
 else
     # Fallback to ephemeral cache in /tmp
     log_warn "Cache directory $CACHE_DIR is not writable, using ephemeral cache"
@@ -38,7 +37,6 @@ else
     mkdir -p "$CACHE_DIR"
     chmod 750 "$CACHE_DIR"
     log_info "Created ephemeral cache: $CACHE_DIR (${CACHE_SIZE_MB}MB)"
-    USING_PERSISTENT=false
 fi
 
 # Initialize cache if not already initialized
