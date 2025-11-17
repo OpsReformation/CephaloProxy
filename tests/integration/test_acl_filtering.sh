@@ -61,8 +61,8 @@ teardown() {
 
     sleep 2
 
-    # Check logs for denial
-    run docker logs "$CONTAINER_NAME" 2>&1
+    # Check Squid's access.log for denial (more reliable than docker logs)
+    run docker exec "$CONTAINER_NAME" cat /var/log/squid/access.log
     [ "$status" -eq 0 ]
     [[ "$output" =~ "DENIED" || "$output" =~ "403" ]]
 

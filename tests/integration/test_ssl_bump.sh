@@ -107,10 +107,11 @@ teardown() {
 
     sleep 2
 
-    # Check logs for cache activity
-    run docker logs "$CONTAINER_NAME" 2>&1
+    # Check Squid's access.log for cache activity (more reliable than docker logs)
+    run docker exec "$CONTAINER_NAME" cat /var/log/squid/access.log
     [ "$status" -eq 0 ]
     # Logs should show cache activity (TCP_MISS then TCP_HIT or similar)
+    [[ "$output" =~ "TCP_" ]]
 
     teardown
 }

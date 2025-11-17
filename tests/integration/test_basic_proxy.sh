@@ -121,13 +121,14 @@ teardown() {
     [ "$status" -eq 0 ]
     [ "$output" = "200" ]
 
-    # Wait for logs to be written (longer on CI runners)
-    sleep 5
+    # Wait for logs to be written
+    sleep 3
 
-    # Check logs for successful request (TCP_MISS, TCP_HIT, or TCP_REFRESH_HIT)
-    run docker logs "$CONTAINER_NAME" 2>&1
+    # Check Squid's access.log inside the container for the request
+    # This is more reliable than docker logs which only captures stdout/stderr
+    run docker exec "$CONTAINER_NAME" cat /var/log/squid/access.log
     [ "$status" -eq 0 ]
-    # Squid logs should contain either the domain or TCP_ status codes
+    # Squid access.log should contain either the domain or TCP_ status codes
     [[ "$output" =~ example.com ]] || [[ "$output" =~ TCP_ ]]
 
     # Cleanup
