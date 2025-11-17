@@ -112,18 +112,23 @@ teardown() {
     # Wait for container to be ready
     sleep 10
 
-    # Make a proxy request
-    curl -x "http://localhost:$PROXY_PORT" \
+    # Make a proxy request and verify it succeeds
+    run curl -x "http://localhost:$PROXY_PORT" \
         -s \
-        http://example.com > /dev/null 2>&1 || true
-
-    # Wait for logs to be written
-    sleep 2
-
-    # Check logs for successful request
-    run docker logs "$CONTAINER_NAME"
+        -o /dev/null \
+        -w "%{http_code}" \
+        http://example.com
     [ "$status" -eq 0 ]
-    [[ "$output" =~ example.com ]]
+    [ "$output" = "200" ]
+
+    # Wait for logs to be written (longer on CI runners)
+    sleep 5
+
+    # Check logs for successful request (TCP_MISS, TCP_HIT, or TCP_REFRESH_HIT)
+    run docker logs "$CONTAINER_NAME" 2>&1
+    [ "$status" -eq 0 ]
+    # Squid logs should contain either the domain or TCP_ status codes
+    [[ "$output" =~ example.com ]] || [[ "$output" =~ TCP_ ]]
 
     # Cleanup
     teardown
