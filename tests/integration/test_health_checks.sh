@@ -71,10 +71,10 @@ teardown() {
 
     sleep 10
 
-    # Check content type header
-    run curl -s -I "http://localhost:$HEALTH_PORT/health"
+    # Check content type header using curl's header output format
+    run curl -s -o /dev/null -w "%{content_type}" "http://localhost:$HEALTH_PORT/health"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Content-Type: text/plain" ]]
+    [[ "$output" =~ "text/plain" ]]
 
     teardown
 }
@@ -171,9 +171,10 @@ teardown() {
 
     sleep 10
 
-    run curl -s -I "http://localhost:$HEALTH_PORT/ready"
+    # Check content type header using curl's header output format
+    run curl -s -o /dev/null -w "%{content_type}" "http://localhost:$HEALTH_PORT/ready"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Content-Type: text/plain" ]]
+    [[ "$output" =~ "text/plain" ]]
 
     teardown
 }
