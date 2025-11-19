@@ -1,0 +1,148 @@
+# Default Squid Configuration for CephaloProxy
+# This configuration provides sensible defaults for basic HTTP/HTTPS proxy usage
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+
+# Proxy port
+http_port 3128
+
+# =============================================================================
+# Cache Configuration
+# =============================================================================
+
+# PID file location (must be writable by squid user)
+pid_filename /var/run/squid/squid.pid
+
+# Cache directory: 250MB, 16 first-level subdirs, 256 second-level subdirs
+cache_dir ufs /var/spool/squid 250 16 256
+
+# Memory cache size
+cache_mem 64 MB
+
+# Maximum cached object size
+maximum_object_size 4 MB
+
+# Minimum cached object size
+minimum_object_size 0 KB
+
+# Cache replacement policy
+cache_replacement_policy heap LFUDA
+
+# Memory replacement policy
+memory_replacement_policy heap GDSF
+
+# Core dumps directory (must be writable)
+coredump_dir /var/cache/squid
+
+# =============================================================================
+# Access Control Lists (ACLs)
+# =============================================================================
+
+# Predefined ACLs
+acl SSL_ports port 443
+acl Safe_ports port 80          # http
+acl Safe_ports port 21          # ftp
+acl Safe_ports port 443         # https
+acl Safe_ports port 70          # gopher
+acl Safe_ports port 210         # wais
+acl Safe_ports port 1025-65535  # unregistered ports
+acl Safe_ports port 280         # http-mgmt
+acl Safe_ports port 488         # gss-http
+acl Safe_ports port 591         # filemaker
+acl Safe_ports port 777         # multiling http
+
+# CONNECT method
+acl CONNECT method CONNECT
+
+# Local networks (RFC1918 private IP ranges)
+acl localnet src 10.0.0.0/8
+acl localnet src 172.16.0.0/12
+acl localnet src 192.168.0.0/16
+acl localnet src fc00::/7
+acl localnet src fe80::/10
+
+# =============================================================================
+# Access Rules
+# =============================================================================
+
+# Deny requests to unsafe ports
+http_access deny !Safe_ports
+
+# Deny CONNECT to non-SSL ports
+http_access deny CONNECT !SSL_ports
+
+# Allow localhost management
+http_access allow localhost manager
+http_access deny manager
+
+# Allow local network access
+http_access allow localnet
+http_access allow localhost
+
+# Deny all other access
+http_access deny all
+
+# =============================================================================
+# Logging
+# =============================================================================
+
+# Access log with Squid native format (using stdio: prefix for modern Squid)
+access_log stdio:/var/log/squid/access.log squid
+
+# Cache log for operational messages
+cache_log stdio:/var/log/squid/cache.log
+
+# Log level (0 = critical, 1 = important, 2 = verbose)
+debug_options ALL,1
+
+# Note: log_fqdn is deprecated. Use %>A in log format to log FQDN
+
+# =============================================================================
+# Performance Tuning
+# =============================================================================
+
+# Maximum number of file descriptors
+# max_filedescriptors 4096
+
+# Refresh patterns for common content types
+refresh_pattern ^ftp:           1440    20%     10080
+refresh_pattern ^gopher:        1440    0%      1440
+refresh_pattern -i (/cgi-bin/|\?) 0     0%      0
+refresh_pattern .               0       20%     4320
+
+# =============================================================================
+# Miscellaneous
+# =============================================================================
+
+# Hostname visible in error pages
+visible_hostname cephaloproxy
+
+# Note: Running as non-root user (UID 1000)
+# The "WARNING: no_suid: setuid(0): Operation not permitted" message is expected
+# and harmless when running as non-root. Squid functions correctly without setuid.
+
+# Anonymize requests (remove certain headers)
+# request_header_access Referer deny all
+# request_header_access X-Forwarded-For deny all
+# request_header_access Via deny all
+# request_header_access Cache-Control deny all
+
+# Disable caching of dynamic content by default
+# acl dynamic_content urlpath_regex cgi-bin \?
+# cache deny dynamic_content
+
+# =============================================================================
+# Notes
+# =============================================================================
+#
+# This is a basic configuration. For advanced features, mount a custom
+# squid.conf to /etc/squid/squid.conf with:
+#
+# - SSL-bump: For HTTPS interception and caching
+# - Authentication: For user-based access control
+# - Parent proxies: For hierarchical caching
+# - Custom ACLs: For fine-grained filtering
+#
+# See /config-examples/ for example configurations

@@ -1,0 +1,79 @@
+version: '3.8'
+
+# CephaloProxy v1.0-mvp Production Deployment
+# Basic HTTP proxy with optional ACL filtering and persistent cache
+
+services:
+  squid:
+    image: cephaloproxy:v1.0-mvp
+    container_name: cephaloproxy
+    restart: unless-stopped
+
+    ports:
+      - "3128:3128"   # Proxy port
+      - "8080:8080"   # Health check port
+
+    volumes:
+      # Persistent cache (optional but recommended)
+      - squid-cache:/var/spool/squid
+
+      # Persistent logs (optional)
+      - squid-logs:/var/log/squid
+
+      # Custom configuration (optional - uncomment to use)
+      # - ./squid.conf:/etc/squid/squid.conf:ro
+
+      # ACL files (optional - uncomment for filtering)
+      # - ./blocked-domains.acl:/etc/squid/conf.d/blocked-domains.acl:ro
+
+    environment:
+      # Cache size in MB (default: 250)
+      - CACHE_SIZE_MB=1000
+
+      # Log level: 0=critical, 1=important, 2=verbose (default: 1)
+      - LOG_LEVEL=1
+
+      # Proxy port (default: 3128)
+      # - SQUID_PORT=3128
+
+      # Health check port (default: 8080)
+      # - HEALTH_PORT=8080
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Security
+    user: "1000:1000"  # Run as non-root
+    read_only: false   # Squid needs to write to cache/logs
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  squid-cache:
+    driver: local
+  squid-logs:
+    driver: local
+
+# Optional: Network configuration
+# networks:
+#   proxy-network:
+#     driver: bridge

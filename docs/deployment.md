@@ -1,0 +1,526 @@
+# Deployment Guide: CephaloProxy
+
+Complete deployment guide for Docker, Kubernetes, and OpenShift environments.
+
+## Table of Contents
+
+- [Docker Deployment](#docker-deployment)
+- [Docker Compose Deployment](#docker-compose-deployment)
+- [Kubernetes Deployment](#kubernetes-deployment)
+- [OpenShift Deployment](#openshift-deployment)
+- [Production Considerations](#production-considerations)
+
+---
+
+## Docker Deployment
+
+### Basic Deployment
+
+```bash
+docker run -d \
+  --name squid-proxy \
+  -p 3128:3128 \
+  -p 8080:8080 \
+  cephaloproxy:latest
+```
+
+### With Persistent Cache
+
+```bash
+docker volume create squid-cache
+
+docker run -d \
+  --name squid-proxy \
+  -p 3128:3128 \
+  -p 8080:8080 \
+  -v squid-cache:/var/spool/squid \
+  cephaloproxy:latest
+```
+
+### With Custom Configuration
+
+```bash
+docker run -d \
+  --name squid-proxy \
+  -p 3128:3128 \
+  -p 8080:8080 \
+  -v /path/to/squid.conf:/etc/squid/squid.conf:ro \
+  -v squid-cache:/var/spool/squid \
+  cephaloproxy:latest
+```
+
+### With SSL-Bump
+
+```bash
+docker run -d \
+  --name squid-proxy \
+  -p 3128:3128 \
+  -p 8080:8080 \
+  -v /path/to/squid.conf:/etc/squid/squid.conf:ro \
+  -v /path/to/ssl-certs:/etc/squid/ssl_cert:ro \
+  -v squid-cache:/var/spool/squid \
+  cephaloproxy:latest
+```
+
+---
+
+## Docker Compose Deployment
+
+### Basic docker-compose.yml
+
+```yaml
+version: '3.8'
+
+services:
+  squid:
+    image: cephaloproxy:latest
+    container_name: squid-proxy
+    ports:
+      - "3128:3128"
+      - "8080:8080"
+    volumes:
+      - squid-cache:/var/spool/squid
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  squid-cache:
+```
+
+### With Custom Configuration
+
+```yaml
+version: '3.8'
+
+services:
+  squid:
+    image: cephaloproxy:latest
+    container_name: squid-proxy
+    ports:
+      - "3128:3128"
+      - "8080:8080"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+      - ./acls:/etc/squid/conf.d:ro
+      - squid-cache:/var/spool/squid
+      - squid-logs:/var/log/squid
+    environment:
+      - CACHE_SIZE_MB=1000
+      - LOG_LEVEL=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  squid-cache:
+  squid-logs:
+```
+
+### Deploy
+
+```bash
+docker-compose up -d
+docker-compose logs -f
+docker-compose ps
+```
+
+---
+
+## Kubernetes Deployment
+
+### ConfigMap for Squid Configuration
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-config
+  namespace: default
+data:
+  squid.conf: |
+    http_port 3128
+    cache_dir ufs /var/spool/squid 1000 16 256
+    cache_mem 128 MB
+    maximum_object_size 10 MB
+
+    acl SSL_ports port 443
+    acl Safe_ports port 80 443 21 70 210 1025-65535
+    acl CONNECT method CONNECT
+    acl localnet src 10.0.0.0/8
+    acl localnet src 172.16.0.0/12
+    acl localnet src 192.168.0.0/16
+
+    http_access deny !Safe_ports
+    http_access deny CONNECT !SSL_ports
+    http_access allow localhost manager
+    http_access deny manager
+    http_access allow localnet
+    http_access allow localhost
+    http_access deny all
+
+    access_log /var/log/squid/access.log squid
+    cache_log /var/log/squid/cache.log
+
+    visible_hostname cephaloproxy
+```
+
+### PersistentVolumeClaim for Cache
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: squid-cache-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard  # Adjust based on your cluster
+```
+
+### Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: squid-proxy
+  namespace: default
+  labels:
+    app: squid-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: squid-proxy
+  template:
+    metadata:
+      labels:
+        app: squid-proxy
+    spec:
+      containers:
+      - name: squid
+        image: cephaloproxy:latest
+        ports:
+        - containerPort: 3128
+          name: proxy
+          protocol: TCP
+        - containerPort: 8080
+          name: healthcheck
+          protocol: TCP
+        env:
+        - name: CACHE_SIZE_MB
+          value: "1000"
+        - name: LOG_LEVEL
+          value: "1"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+          readOnly: true
+        - name: cache
+          mountPath: /var/spool/squid
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: squid-config
+      - name: cache
+        persistentVolumeClaim:
+          claimName: squid-cache-pvc
+```
+
+### Service
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: squid-proxy
+  namespace: default
+spec:
+  selector:
+    app: squid-proxy
+  type: ClusterIP
+  ports:
+  - name: proxy
+    port: 3128
+    targetPort: 3128
+    protocol: TCP
+  - name: healthcheck
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+```
+
+### Deploy to Kubernetes
+
+```bash
+kubectl apply -f configmap.yaml
+kubectl apply -f pvc.yaml
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+
+# Verify deployment
+kubectl get pods -l app=squid-proxy
+kubectl logs -l app=squid-proxy -f
+
+# Test proxy via port-forward
+kubectl port-forward svc/squid-proxy 3128:3128
+curl -x http://localhost:3128 -I http://example.com
+```
+
+---
+
+## OpenShift Deployment
+
+OpenShift has stricter security requirements (SCC - Security Context Constraints). CephaloProxy supports arbitrary UID/GID assignment.
+
+### Create Project
+
+```bash
+oc new-project cephaloproxy
+```
+
+### ConfigMap
+
+```bash
+oc create configmap squid-config --from-file=squid.conf=/path/to/squid.conf
+```
+
+### PersistentVolumeClaim
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: squid-cache-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+### Deployment with OpenShift SCC
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: squid-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: squid-proxy
+  template:
+    metadata:
+      labels:
+        app: squid-proxy
+    spec:
+      # OpenShift security context
+      securityContext:
+        # fsGroup is set to 0 for OpenShift compatibility
+        fsGroup: 0
+      containers:
+      - name: squid
+        image: cephaloproxy:latest
+        ports:
+        - containerPort: 3128
+          name: proxy
+        - containerPort: 8080
+          name: healthcheck
+        securityContext:
+          # OpenShift will assign arbitrary UID, GID is always 0
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+          readOnly: true
+        - name: cache
+          mountPath: /var/spool/squid
+      volumes:
+      - name: config
+        configMap:
+          name: squid-config
+      - name: cache
+        persistentVolumeClaim:
+          claimName: squid-cache-pvc
+```
+
+### Service and Route
+
+```yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: squid-proxy
+spec:
+  selector:
+    app: squid-proxy
+  ports:
+  - name: proxy
+    port: 3128
+    targetPort: 3128
+  - name: healthcheck
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: squid-proxy
+spec:
+  port:
+    targetPort: proxy
+  to:
+    kind: Service
+    name: squid-proxy
+```
+
+### Deploy to OpenShift
+
+```bash
+oc apply -f pvc.yaml
+oc apply -f deployment.yaml
+oc apply -f service.yaml
+
+# Verify deployment
+oc get pods
+oc logs -f deployment/squid-proxy
+
+# Check UID assignment (should be arbitrary, not 1000)
+oc rsh deployment/squid-proxy id
+# Expected: uid=1000720000 gid=0(root)
+
+# Test proxy
+oc port-forward svc/squid-proxy 3128:3128
+curl -x http://localhost:3128 -I http://example.com
+```
+
+---
+
+## Production Considerations
+
+### Resource Limits
+
+- **CPU**: 500m minimum, 2000m recommended for high traffic
+- **Memory**: 512Mi minimum, 2Gi+ recommended (depends on cache size)
+- **Storage**: 10Gi minimum for cache, adjust based on traffic patterns
+
+### High Availability
+
+For HA deployments, run multiple replicas with a load balancer:
+
+```yaml
+spec:
+  replicas: 3  # Multiple replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+```
+
+**Note**: Squid cache is local to each pod. For shared cache, consider external caching solutions or parent proxy hierarchy.
+
+### Monitoring
+
+- Monitor `/health` and `/ready` endpoints
+- Collect logs from `/var/log/squid/`
+- Track cache hit rates via access logs
+- Monitor resource usage (CPU, memory, disk)
+
+### Security
+
+- Run with minimal privileges (UID 1000 or arbitrary UID in OpenShift)
+- Use read-only volume mounts for configs
+- Store SSL certificates in Kubernetes Secrets
+- Enable network policies to restrict proxy access
+- Regularly update the container image for security patches
+
+### Backup and Recovery
+
+- **Configuration**: Store configs in version control
+- **Cache**: Ephemeral by design, no backup needed (rebuild on restart)
+- **Logs**: Export to external log aggregation (ELK, Splunk, etc.)
+
+### Scaling
+
+- Horizontal scaling: Increase replicas
+- Vertical scaling: Increase CPU/memory limits
+- Cache sizing: Adjust `CACHE_SIZE_MB` based on available storage
+
+---
+
+## Next Steps
+
+- [Configuration Reference](configuration.md) - Detailed configuration options
+- [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions

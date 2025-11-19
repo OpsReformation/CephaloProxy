@@ -1,0 +1,183 @@
+openapi: 3.0.3
+info:
+  title: CephaloProxy Health Check API
+  description: |
+    Health check endpoints for container orchestrators (Docker, Kubernetes, OpenShift).
+    Provides liveness and readiness probes for automated container management.
+  version: 1.0.0
+  contact:
+    name: CephaloProxy
+
+servers:
+  - url: http://localhost:8080
+    description: Health check server (runs alongside Squid on separate port)
+
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      description: |
+        Indicates whether the container is alive and should continue running.
+        Returns 200 OK if the Squid process is running, 503 Service Unavailable otherwise.
+
+        **Kubernetes/OpenShift usage**: Configure as `livenessProbe.httpGet.path=/health`
+        **Failure action**: Container orchestrator restarts the container
+      operationId: getLiveness
+      tags:
+        - Health Checks
+      responses:
+        '200':
+          description: Container is alive - Squid process is running
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "OK"
+        '503':
+          description: Container is unhealthy - Squid process not running
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Squid process not found"
+      x-response-time: "< 100ms"
+      x-check-logic: |
+        1. Check if Squid process exists (pgrep squid)
+        2. Return 200 if process found, 503 otherwise
+
+  /ready:
+    get:
+      summary: Readiness probe
+      description: |
+        Indicates whether the container is ready to accept traffic.
+        Returns 200 OK if Squid is running AND cache directories are writable,
+        503 Service Unavailable if not ready.
+
+        **Kubernetes/OpenShift usage**: Configure as `readinessProbe.httpGet.path=/ready`
+        **Failure action**: Container removed from service load balancer
+      operationId: getReadiness
+      tags:
+        - Health Checks
+      responses:
+        '200':
+          description: Container is ready to accept proxy traffic
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "READY"
+        '503':
+          description: Container not ready - Squid initializing or cache dirs not accessible
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Cache directory not writable"
+      x-response-time: "< 100ms"
+      x-check-logic: |
+        1. Check if Squid process exists (pgrep squid)
+        2. Check if cache directory exists and is writable
+        3. Check if /etc/squid/squid.conf is readable
+        4. Return 200 only if all checks pass, 503 otherwise
+
+  /metrics:
+    get:
+      summary: Prometheus metrics (future)
+      description: |
+        **NOT IMPLEMENTED in v1.0.0** - Reserved for future Prometheus metrics export.
+        Will provide cache hit rates, request counts, latency histograms per Constitution requirements.
+      operationId: getMetrics
+      tags:
+        - Observability
+      responses:
+        '501':
+          description: Not implemented in current version
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Metrics endpoint not implemented"
+
+components:
+  schemas: {}
+
+tags:
+  - name: Health Checks
+    description: Liveness and readiness probes for container orchestrators
+  - name: Observability
+    description: Metrics and monitoring endpoints (future)
+
+x-implementation-notes: |
+  ## Health Check Server Implementation
+
+  The health check server is a lightweight Python HTTP server (healthcheck.py)
+  that runs in the background alongside Squid. It binds to port 8080 (configurable
+  via HEALTH_PORT environment variable).
+
+  ### Startup Sequence:
+  1. Container entrypoint starts healthcheck.py in background
+  2. healthcheck.py binds to :8080
+  3. Container entrypoint starts Squid in foreground
+  4. Health checks become available immediately
+
+  ### Process Management:
+  - healthcheck.py runs as child process of entrypoint.sh
+  - Squid runs as main process (PID 1 in container)
+  - Container terminates when Squid exits
+
+  ### Performance:
+  - Health check responses < 100ms (typically < 10ms)
+  - Minimal memory overhead (< 10MB)
+  - No disk I/O except checking cache dir existence
+
+  ### OpenShift Compatibility:
+  - Health check server runs as same arbitrary UID as Squid
+  - Port 8080 does not require privileged access
+  - No file writes required for health checks
+
+x-kubernetes-example: |
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: squid-proxy
+  spec:
+    containers:
+    - name: squid
+      image: cephaloproxy:latest
+      ports:
+      - containerPort: 3128
+        name: proxy
+      - containerPort: 8080
+        name: healthcheck
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 30
+        timeoutSeconds: 5
+        failureThreshold: 3
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 2
+
+x-docker-healthcheck-example: |
+  # Dockerfile HEALTHCHECK instruction
+  HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+  # Or in docker-compose.yml:
+  services:
+    squid:
+      image: cephaloproxy:latest
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+        interval: 30s
+        timeout: 3s
+        retries: 3
+        start_period: 10s

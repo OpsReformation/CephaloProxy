@@ -1,0 +1,220 @@
+# CephaloProxy v1.0-mvp Kubernetes Deployment
+# Production-ready HTTP proxy with health checks and persistent cache
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cephaloproxy
+  labels:
+    app: cephaloproxy
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-config
+  namespace: cephaloproxy
+data:
+  squid.conf: |
+    # Basic HTTP proxy configuration
+    http_port 3128
+    pid_filename /var/run/squid/squid.pid
+
+    # Cache configuration
+    cache_dir ufs /var/spool/squid 1000 16 256
+    cache_mem 128 MB
+    maximum_object_size 10 MB
+    minimum_object_size 0 KB
+    cache_replacement_policy heap LFUDA
+    memory_replacement_policy heap GDSF
+    coredump_dir /var/cache/squid
+
+    # Access Control Lists
+    acl SSL_ports port 443
+    acl Safe_ports port 80 443 21 70 210 1025-65535
+    acl CONNECT method CONNECT
+    acl localnet src 10.0.0.0/8
+    acl localnet src 172.16.0.0/12
+    acl localnet src 192.168.0.0/16
+
+    # Access Rules
+    http_access deny !Safe_ports
+    http_access deny CONNECT !SSL_ports
+    http_access allow localhost manager
+    http_access deny manager
+    http_access allow localnet
+    http_access allow localhost
+    http_access deny all
+
+    # Logging
+    access_log stdio:/var/log/squid/access.log squid
+    cache_log stdio:/var/log/squid/cache.log
+    debug_options ALL,1
+
+    # Performance
+    refresh_pattern ^ftp:           1440    20%     10080
+    refresh_pattern ^gopher:        1440    0%      1440
+    refresh_pattern -i (/cgi-bin/|\?) 0     0%      0
+    refresh_pattern .               0       20%     4320
+
+    # Miscellaneous
+    visible_hostname cephaloproxy
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: squid-cache-pvc
+  namespace: cephaloproxy
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # storageClassName: fast  # Uncomment and specify your storage class
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: squid-proxy
+  namespace: cephaloproxy
+  labels:
+    app: squid-proxy
+    version: v1.0-mvp
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: squid-proxy
+  template:
+    metadata:
+      labels:
+        app: squid-proxy
+        version: v1.0-mvp
+    spec:
+      containers:
+      - name: squid
+        image: cephaloproxy:v1.0-mvp
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - containerPort: 3128
+          name: proxy
+          protocol: TCP
+        - containerPort: 8080
+          name: healthcheck
+          protocol: TCP
+
+        env:
+        - name: CACHE_SIZE_MB
+          value: "1000"
+        - name: LOG_LEVEL
+          value: "1"
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+
+        volumeMounts:
+        - name: config
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+          readOnly: true
+        - name: cache
+          mountPath: /var/spool/squid
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+
+      volumes:
+      - name: config
+        configMap:
+          name: squid-config
+      - name: cache
+        persistentVolumeClaim:
+          claimName: squid-cache-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: squid-proxy
+  namespace: cephaloproxy
+  labels:
+    app: squid-proxy
+spec:
+  type: ClusterIP
+  selector:
+    app: squid-proxy
+  ports:
+  - name: proxy
+    port: 3128
+    targetPort: 3128
+    protocol: TCP
+  - name: healthcheck
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+
+---
+# Optional: HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: squid-proxy-hpa
+  namespace: cephaloproxy
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: squid-proxy
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
