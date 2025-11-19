@@ -1,0 +1,47 @@
+# Version control
+.git/
+.gitignore
+.github/
+
+# Documentation and specs
+specs/
+docs/
+README.md
+CLAUDE.md
+*.md
+
+# Tests
+tests/
+coverage/
+
+# IDE and development
+.vscode/
+.idea/
+.claude/
+.specify/
+
+# Logs and cache
+*.log
+*.cache
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env*
+!.env.example
+
+# Build artifacts
+dist/
+build/
+target/
+*.tar
+*.tar.gz
+
+# Config examples (not needed in image)
+config-examples/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
