@@ -219,8 +219,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Download container image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: container-image
+          path: /tmp
+
+      - name: Load container image
+        run: |
+          docker load --input /tmp/cephaloproxy-test.tar
+          docker images
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -243,16 +251,21 @@ jobs:
             type=sha
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: container/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Tag and push tested image
+        run: |
+          # Extract tags from metadata output (one per line)
+          echo "Generated tags:"
+          echo "${{ steps.meta.outputs.tags }}"
+
+          # Tag the loaded image with all registry tags
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              echo "Tagging: ${{ env.IMAGE_NAME }}:test -> $tag"
+              docker tag ${{ env.IMAGE_NAME }}:test "$tag"
+              echo "Pushing: $tag"
+              docker push "$tag"
+            fi
+          done <<< "${{ steps.meta.outputs.tags }}"
 
   summary:
     name: Build Summary
