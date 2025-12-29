@@ -46,6 +46,14 @@ LOG_LEVEL=${LOG_LEVEL:-1}
 
 log_info "Checking Squid configuration..."
 
+# Ensure runtime directories are writable (may have wrong ownership after mounts)
+for dir in /var/run/squid /var/log/squid /var/lib/squid /var/spool/squid /var/cache/squid; do
+    if [ ! -w "$dir" ]; then
+        log_warn "Directory $dir is not writable, attempting to fix permissions"
+        chmod 770 "$dir" 2>/dev/null || true
+    fi
+done
+
 # Use custom config if mounted, otherwise use default
 if [ -f "$SQUID_CONF" ] && [ "$SQUID_CONF" != "$DEFAULT_CONF" ]; then
     log_info "Using custom configuration: $SQUID_CONF"
