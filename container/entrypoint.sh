@@ -54,6 +54,12 @@ for dir in /var/run/squid /var/log/squid /var/lib/squid /var/spool/squid /var/ca
     fi
 done
 
+# Create symlink from /run/squid.pid to /var/run/squid/squid.pid for Squid's default behavior
+# (Squid tries /run/squid.pid first before checking pid_filename directive)
+if [ ! -e /run/squid.pid ] && [ -w /run ]; then
+    ln -sf /var/run/squid/squid.pid /run/squid.pid 2>/dev/null || true
+fi
+
 # Use custom config if mounted, otherwise use default
 if [ -f "$SQUID_CONF" ] && [ "$SQUID_CONF" != "$DEFAULT_CONF" ]; then
     log_info "Using custom configuration: $SQUID_CONF"
@@ -190,5 +196,31 @@ log_info "Proxy port: $SQUID_PORT"
 log_info "Cache directory: $CACHE_DIR"
 log_info "Log level: $LOG_LEVEL"
 
-# Start Squid in foreground mode (-N) for container compatibility
-exec squid -f "$ACTIVE_CONFIG" -N -d "$LOG_LEVEL"
+# Start Squid in daemon mode (foreground mode -N causes helper process issues)
+squid -f "$ACTIVE_CONFIG" -d "$LOG_LEVEL"
+
+# Monitor the Squid process to keep container running
+PID_FILE="/var/run/squid/squid.pid"
+
+# Wait for PID file to be created
+for i in {1..30}; do
+    if [ -f "$PID_FILE" ]; then
+        SQUID_PID=$(cat "$PID_FILE")
+        log_info "Squid started with PID $SQUID_PID"
+        break
+    fi
+    sleep 0.1
+done
+
+if [ ! -f "$PID_FILE" ]; then
+    log_error "Squid failed to start - PID file not created"
+    exit 1
+fi
+
+# Monitor Squid process - exit when it dies
+while kill -0 "$SQUID_PID" 2>/dev/null; do
+    sleep 1
+done
+
+log_error "Squid process died unexpectedly"
+exit 1
