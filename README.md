@@ -75,7 +75,7 @@ Built on Gentoo Linux to compile Squid with SSL-bump support (not available in m
 |------|---------|----------|
 | `/etc/squid/squid.conf` | Custom configuration | Optional |
 | `/etc/squid/conf.d/` | ACL files | Optional |
-| `/etc/squid/ssl_cert/` | SSL certificates | Required for SSL-bump |
+| `/etc/squid/ssl_cert/` | TLS secret (tls.crt, tls.key) | Required for SSL-bump |
 | `/var/spool/squid` | Persistent cache | Optional |
 
 ## Performance

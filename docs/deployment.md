@@ -52,12 +52,13 @@ docker run -d \
 ### With SSL-Bump
 
 ```bash
+# TLS secret directory must contain tls.crt and tls.key
 docker run -d \
   --name squid-proxy \
   -p 3128:3128 \
   -p 8080:8080 \
   -v /path/to/squid.conf:/etc/squid/squid.conf:ro \
-  -v /path/to/ssl-certs:/etc/squid/ssl_cert:ro \
+  -v /path/to/tls-secret:/etc/squid/ssl_cert:ro \
   -v squid-cache:/var/spool/squid \
   cephaloproxy:latest
 ```
@@ -308,6 +309,86 @@ kubectl logs -l app=squid-proxy -f
 # Test proxy via port-forward
 kubectl port-forward svc/squid-proxy 3128:3128
 curl -x http://localhost:3128 -I http://example.com
+```
+
+### Kubernetes with SSL-Bump
+
+To enable SSL-bump in Kubernetes, create and mount a TLS secret:
+
+```bash
+# Create TLS certificate
+openssl genrsa -out tls.key 4096
+openssl req -new -x509 -key tls.key -out tls.crt -days 3650 \
+  -subj "/C=US/ST=State/L=City/O=Organization/CN=Squid CA"
+
+# Create Kubernetes secret
+kubectl create secret tls squid-ca-cert \
+  --cert=tls.crt \
+  --key=tls.key \
+  -n default
+```
+
+Update your ConfigMap with SSL-bump configuration:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-config
+  namespace: default
+data:
+  squid.conf: |
+    # SSL-bump configuration (certificate merged by entrypoint)
+    http_port 3128 ssl-bump \
+      cert=/var/lib/squid/squid-ca.pem \
+      generate-host-certificates=on \
+      dynamic_cert_mem_cache_size=16MB
+
+    sslcrtd_program /usr/libexec/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 16MB
+    sslcrtd_children 10 startup=1 idle=1
+
+    acl step1 at_step SslBump1
+    acl step2 at_step SslBump2
+    acl step3 at_step SslBump3
+
+    ssl_bump peek step1
+    ssl_bump stare step2
+    ssl_bump bump step3
+
+    cache_dir ufs /var/spool/squid 1000 16 256
+    cache_mem 128 MB
+
+    acl localnet src 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+    http_access allow localnet
+    http_access deny all
+
+    access_log /var/log/squid/access.log squid
+    visible_hostname cephaloproxy
+```
+
+Add the TLS secret volume mount to your Deployment:
+
+```yaml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+          readOnly: true
+        - name: tls-secret
+          mountPath: /etc/squid/ssl_cert
+          readOnly: true
+        - name: cache
+          mountPath: /var/spool/squid
+      volumes:
+      - name: config
+        configMap:
+          name: squid-config
+      - name: tls-secret
+        secret:
+          secretName: squid-ca-cert
+      - name: cache
+        persistentVolumeClaim:
+          claimName: squid-cache-pvc
 ```
 
 ---

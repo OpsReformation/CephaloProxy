@@ -6,7 +6,7 @@
 # Stage 0: Portage
 # =============================================================================
 # hadolint ignore=DL3007
-FROM gentoo/portage:latest AS portage
+FROM gentoo/portage:20251229 AS portage
 
 # =============================================================================
 # Stage 1: Builder - Compile Squid with SSL-bump support and Python

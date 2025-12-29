@@ -45,7 +45,7 @@ docker run -d \
 |------|---------|------------------|---------------------------|
 | `/etc/squid/squid.conf` | Main Squid configuration | Use embedded default | Mount custom config |
 | `/etc/squid/conf.d/` | ACL files directory | Empty (no filtering) | Mount ACL files |
-| `/etc/squid/ssl_cert/` | SSL certificates for ssl-bump | Empty (ssl-bump disabled) | Mount CA cert/key |
+| `/etc/squid/ssl_cert/` | TLS secret (tls.crt, tls.key) | Empty (ssl-bump disabled) | Mount TLS secret for SSL-bump |
 | `/var/spool/squid` | Persistent cache storage | 250MB ephemeral in `/tmp` | Mount volume for persistence |
 | `/var/log/squid` | Squid logs | Ephemeral logs | Mount volume for log persistence |
 
@@ -156,29 +156,40 @@ http_port_max_connections 1000
 
 ### Prerequisites
 
-1. Generate CA certificate:
+1. Generate CA certificate and key:
 ```bash
-openssl genrsa -out ca.key 4096
-openssl req -new -x509 -key ca.key -out ca.pem -days 3650 \
+openssl genrsa -out tls.key 4096
+openssl req -new -x509 -key tls.key -out tls.crt -days 3650 \
   -subj "/C=US/ST=State/L=City/O=Organization/CN=Squid CA"
-chmod 640 ca.key
-chmod 644 ca.pem
 ```
 
-2. Distribute CA certificate to clients and add to trust store
+2. Create Kubernetes TLS secret:
+```bash
+kubectl create secret tls squid-ca-cert \
+  --cert=tls.crt \
+  --key=tls.key
+```
+
+3. Distribute CA certificate (`tls.crt`) to clients and add to trust store
+
+### How SSL-Bump Works in CephaloProxy
+
+When SSL-bump is enabled:
+1. Mount TLS secret containing `tls.crt` and `tls.key` to `/etc/squid/ssl_cert/`
+2. The entrypoint script merges them into `/var/lib/squid/squid-ca.pem`
+3. Squid uses the merged certificate to intercept and decrypt HTTPS traffic
 
 ### Basic SSL-Bump Configuration
 
 ```squid.conf
-# SSL-bump port
+# SSL-bump port (certificate will be merged by entrypoint script)
 http_port 3128 ssl-bump \
-  cert=/etc/squid/ssl_cert/ca.pem \
-  key=/etc/squid/ssl_cert/ca.key \
+  cert=/var/lib/squid/squid-ca.pem \
   generate-host-certificates=on \
   dynamic_cert_mem_cache_size=16MB
 
 # SSL certificate helper
-sslcrtd_program /usr/lib64/squid/ssl_crtd -s /var/lib/squid/ssl_db -M 16MB
+sslcrtd_program /usr/libexec/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 16MB
 sslcrtd_children 10 startup=1 idle=1
 
 # SSL bump steps
@@ -413,9 +424,15 @@ http_access deny all
 ### Example 3: SSL-Bump with Filtering
 
 ```squid.conf
-http_port 3128 ssl-bump cert=/etc/squid/ssl_cert/ca.pem key=/etc/squid/ssl_cert/ca.key
-sslcrtd_program /usr/lib64/squid/ssl_crtd -s /var/lib/squid/ssl_db -M 16MB
-sslcrtd_children 10
+# TLS secret must be mounted to /etc/squid/ssl_cert/ with tls.crt and tls.key
+# Entrypoint merges them into /var/lib/squid/squid-ca.pem
+http_port 3128 ssl-bump \
+  cert=/var/lib/squid/squid-ca.pem \
+  generate-host-certificates=on \
+  dynamic_cert_mem_cache_size=16MB
+
+sslcrtd_program /usr/libexec/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 16MB
+sslcrtd_children 10 startup=1 idle=1
 
 acl step1 at_step SslBump1
 acl step2 at_step SslBump2

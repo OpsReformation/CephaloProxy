@@ -64,10 +64,12 @@ fi
 if grep -q "ssl-bump" "$ACTIVE_CONFIG" 2>/dev/null; then
     log_info "SSL-bump detected in configuration"
 
-    # Kubernetes TLS secret file names
-    TLS_CERT="$SSL_CERT_DIR/files/tls.crt"
-    TLS_KEY="$SSL_CERT_DIR/files/tls.key"
-    MERGED_CERT="$SSL_CERT_DIR/squid-ca.pem"
+    # Kubernetes TLS secret file names (mounted read-only at /etc/squid/ssl_cert/)
+    TLS_CERT="$SSL_CERT_DIR/tls.crt"
+    TLS_KEY="$SSL_CERT_DIR/tls.key"
+
+    # Write merged cert to writable location in /var/lib/squid
+    MERGED_CERT="/var/lib/squid/squid-ca.pem"
 
     # Verify TLS certificate exists
     if [ ! -f "$TLS_CERT" ]; then
@@ -83,7 +85,7 @@ if grep -q "ssl-bump" "$ACTIVE_CONFIG" 2>/dev/null; then
         exit 1
     fi
 
-    # Merge certificate and key into squid-ca.pem
+    # Merge certificate and key into squid-ca.pem in writable location
     log_info "Merging TLS certificate and key into $MERGED_CERT"
     {
         cat "$TLS_CERT"

@@ -134,15 +134,40 @@ visible_hostname cephaloproxy
 # cache deny dynamic_content
 
 # =============================================================================
+# SSL-Bump Configuration (Commented Out - Requires TLS Secret Mount)
+# =============================================================================
+#
+# To enable SSL-bump (HTTPS interception):
+# 1. Mount Kubernetes TLS secret to /etc/squid/ssl_cert/ containing tls.crt and tls.key
+# 2. Uncomment the lines below
+# 3. The entrypoint will merge tls.crt and tls.key into /var/lib/squid/squid-ca.pem
+#
+# http_port 3128 ssl-bump \
+#   cert=/var/lib/squid/squid-ca.pem \
+#   generate-host-certificates=on \
+#   dynamic_cert_mem_cache_size=16MB
+#
+# sslcrtd_program /usr/libexec/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 16MB
+# sslcrtd_children 10 startup=1 idle=1
+#
+# acl step1 at_step SslBump1
+# acl step2 at_step SslBump2
+# acl step3 at_step SslBump3
+#
+# ssl_bump peek step1
+# ssl_bump stare step2
+# ssl_bump bump step3
+
+# =============================================================================
 # Notes
 # =============================================================================
 #
 # This is a basic configuration. For advanced features, mount a custom
 # squid.conf to /etc/squid/squid.conf with:
 #
-# - SSL-bump: For HTTPS interception and caching
+# - SSL-bump: For HTTPS interception and caching (see above)
 # - Authentication: For user-based access control
 # - Parent proxies: For hierarchical caching
 # - Custom ACLs: For fine-grained filtering
 #
-# See /config-examples/ for example configurations
+# See documentation at docs/configuration.md for examples
