@@ -91,6 +91,44 @@ if [ -f /etc/squid/squid.conf ] && grep -v "^[[:space:]]*#" /etc/squid/squid.con
 fi
 
 # ============================================================================
+# Cache Size Validation
+# ============================================================================
+
+# Check if configured cache size matches available disk space
+if [ -d "$CACHE_DIR" ]; then
+    # Get total and available space in MB
+    TOTAL_MB=$(df -m "$CACHE_DIR" | awk 'NR==2 {print int($2)}')
+    AVAILABLE_MB=$(df -m "$CACHE_DIR" | awk 'NR==2 {print int($4)}')
+
+    # Calculate overhead: 10% of total (per Squid recommendations), but cap at 5GB max
+    # Squid recommends 10% buffer for cleanup algorithm and filesystem performance
+    OVERHEAD_MB=$((TOTAL_MB * 10 / 100))
+    if [ "$OVERHEAD_MB" -gt 5120 ]; then
+        OVERHEAD_MB=5120  # Cap at 5GB for large PVCs
+    fi
+    USABLE_MB=$((TOTAL_MB - OVERHEAD_MB))
+
+    # Extract configured cache size from squid.conf (4th field of cache_dir directive)
+    CONFIGURED_MB=$(grep -v "^[[:space:]]*#" /etc/squid/squid.conf | grep "^cache_dir" | awk '{print $4}' | head -1)
+
+    if [ -n "$CONFIGURED_MB" ] && [ -n "$USABLE_MB" ]; then
+        if [ "$CONFIGURED_MB" -gt "$USABLE_MB" ]; then
+            log_warn "Cache size mismatch detected:"
+            log_warn "  Configured cache size: ${CONFIGURED_MB} MB"
+            log_warn "  PVC size: ${TOTAL_MB} MB total, ${USABLE_MB} MB usable (${OVERHEAD_MB} MB overhead)"
+            log_warn "  Squid may fill the disk - consider increasing PVC or reducing cache_dir"
+        elif [ "$CONFIGURED_MB" -lt "$((USABLE_MB * 60 / 100))" ]; then
+            log_warn "Cache underutilization detected:"
+            log_warn "  Configured cache size: ${CONFIGURED_MB} MB"
+            log_warn "  PVC size: ${TOTAL_MB} MB total, ${USABLE_MB} MB usable (${OVERHEAD_MB} MB overhead)"
+            log_warn "  Consider increasing cache_dir to ~${USABLE_MB} MB for better cache hit rate"
+        else
+            log_info "Cache size validation: ${CONFIGURED_MB} MB configured, ${USABLE_MB} MB usable (${OVERHEAD_MB} MB overhead)"
+        fi
+    fi
+fi
+
+# ============================================================================
 # Permissions Check
 # ============================================================================
 
