@@ -60,8 +60,8 @@ fi
 # SSL-Bump Certificate Validation (if enabled)
 # ============================================================================
 
-# Check if SSL-bump is enabled in config
-if grep -q "ssl-bump" "$ACTIVE_CONFIG" 2>/dev/null; then
+# Check if SSL-bump is enabled in config (ignore commented lines)
+if grep -v "^[[:space:]]*#" "$ACTIVE_CONFIG" | grep -q "ssl-bump" 2>/dev/null; then
     log_info "SSL-bump detected in configuration"
 
     # Kubernetes TLS secret file names (mounted read-only at /etc/squid/ssl_cert/)
