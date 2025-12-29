@@ -143,7 +143,7 @@ HEALTHCHECK_PID=$!
 # Give health check server time to start
 sleep 2
 
-if ! kill -0 $HEALTHCHECK_PID 2>/dev/null; then
+if ! kill -0 "$HEALTHCHECK_PID" 2>/dev/null; then
     log_error "Health check server failed to start"
     exit 1
 fi
@@ -178,7 +178,7 @@ shutdown() {
 
     # Shutdown health check server
     log_info "Shutting down health check server..."
-    kill $HEALTHCHECK_PID 2>/dev/null || true
+    kill "$HEALTHCHECK_PID" 2>/dev/null || true
 
     log_info "Shutdown complete"
     exit 0
@@ -203,7 +203,7 @@ squid -f "$ACTIVE_CONFIG" -d "$LOG_LEVEL"
 PID_FILE="/var/run/squid/squid.pid"
 
 # Wait for PID file to be created
-for i in {1..30}; do
+for _ in {1..30}; do
     if [ -f "$PID_FILE" ]; then
         SQUID_PID=$(cat "$PID_FILE")
         log_info "Squid started with PID $SQUID_PID"
