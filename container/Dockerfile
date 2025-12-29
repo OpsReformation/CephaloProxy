@@ -80,7 +80,7 @@ RUN mkdir -p \
     /var/run/squid \
     /var/cache/squid \
     /etc/squid/conf.d \
-    /etc/squid/ssl_cert \
+    /etc/squid/ssl_cert/files \
     /tmp && \
     # Create squid user and group
     groupadd -g 1000 squid || true && \

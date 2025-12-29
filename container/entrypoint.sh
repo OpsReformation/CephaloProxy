@@ -76,28 +76,37 @@ log_info "Configuration validation passed"
 if grep -q "ssl-bump" "$ACTIVE_CONFIG" 2>/dev/null; then
     log_info "SSL-bump detected in configuration"
 
-    # Verify CA certificate exists
-    if [ ! -f "$SSL_CERT_DIR/ca.pem" ]; then
-        log_error "SSL-bump enabled but CA certificate not found: $SSL_CERT_DIR/ca.pem"
-        log_error "Please mount your CA certificate to $SSL_CERT_DIR/"
+    # Kubernetes TLS secret file names
+    TLS_CERT="$SSL_CERT_DIR/files/tls.crt"
+    TLS_KEY="$SSL_CERT_DIR/files/tls.key"
+    MERGED_CERT="$SSL_CERT_DIR/squid-ca.pem"
+
+    # Verify TLS certificate exists
+    if [ ! -f "$TLS_CERT" ]; then
+        log_error "SSL-bump enabled but TLS certificate not found: $TLS_CERT"
+        log_error "Please mount your Kubernetes TLS secret to $SSL_CERT_DIR/"
         exit 1
     fi
 
-    # Verify CA private key exists
-    if [ ! -f "$SSL_CERT_DIR/ca.key" ]; then
-        log_error "SSL-bump enabled but CA private key not found: $SSL_CERT_DIR/ca.key"
-        log_error "Please mount your CA private key to $SSL_CERT_DIR/"
+    # Verify TLS private key exists
+    if [ ! -f "$TLS_KEY" ]; then
+        log_error "SSL-bump enabled but TLS private key not found: $TLS_KEY"
+        log_error "Please mount your Kubernetes TLS secret to $SSL_CERT_DIR/"
         exit 1
     fi
 
-    # Verify key file permissions (should not be world-readable)
-    KEY_PERMS=$(stat -c '%a' "$SSL_CERT_DIR/ca.key" 2>/dev/null || stat -f '%Lp' "$SSL_CERT_DIR/ca.key")
-    if [ "${KEY_PERMS: -1}" != "0" ]; then
-        log_warn "CA private key is world-readable (permissions: $KEY_PERMS)"
-        log_warn "Recommend: chmod 640 $SSL_CERT_DIR/ca.key"
-    fi
+    # Merge certificate and key into squid-ca.pem
+    log_info "Merging TLS certificate and key into $MERGED_CERT"
+    {
+        cat "$TLS_CERT"
+        cat "$TLS_KEY"
+    } > "$MERGED_CERT"
 
-    log_info "SSL certificates validated"
+    # Set permissions to 600 (read/write for owner only)
+    chmod 600 "$MERGED_CERT"
+    log_info "Set permissions for $MERGED_CERT to 600"
+
+    log_info "SSL certificates validated and merged"
 fi
 
 # ============================================================================
