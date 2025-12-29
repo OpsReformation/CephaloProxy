@@ -96,9 +96,8 @@ fi
 
 # Check if configured cache size matches available disk space
 if [ -d "$CACHE_DIR" ]; then
-    # Get total and available space in MB
+    # Get total space in MB
     TOTAL_MB=$(df -m "$CACHE_DIR" | awk 'NR==2 {print int($2)}')
-    AVAILABLE_MB=$(df -m "$CACHE_DIR" | awk 'NR==2 {print int($4)}')
 
     # Calculate overhead: 10% of total (per Squid recommendations), but cap at 5GB max
     # Squid recommends 10% buffer for cleanup algorithm and filesystem performance
