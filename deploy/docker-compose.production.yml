@@ -27,11 +27,10 @@ services:
       # - ./blocked-domains.acl:/etc/squid/conf.d/blocked-domains.acl:ro
 
     environment:
-      # Cache size in MB (default: 250)
-      - CACHE_SIZE_MB=1000
-
       # Log level: 0=critical, 1=important, 2=verbose (default: 1)
       - LOG_LEVEL=1
+
+      # Note: Cache size is configured via cache_dir in squid.conf, not environment variable
 
       # Proxy port (default: 3128)
       # - SQUID_PORT=3128

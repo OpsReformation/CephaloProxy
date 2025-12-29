@@ -6,7 +6,6 @@ set -e
 
 # Configuration
 CACHE_DIR="/var/spool/squid"
-CACHE_SIZE_MB=${CACHE_SIZE_MB:-250}
 SSL_DB_DIR="/var/lib/squid/ssl_db"
 CURRENT_UID=$(id -u)
 
@@ -36,7 +35,7 @@ else
     CACHE_DIR="/tmp/squid-cache-${CURRENT_UID}"
     mkdir -p "$CACHE_DIR"
     chmod 750 "$CACHE_DIR"
-    log_info "Created ephemeral cache: $CACHE_DIR (${CACHE_SIZE_MB}MB)"
+    log_info "Created ephemeral cache: $CACHE_DIR"
 fi
 
 # Initialize cache if not already initialized

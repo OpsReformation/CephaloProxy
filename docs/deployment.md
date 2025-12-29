@@ -111,7 +111,6 @@ services:
       - squid-cache:/var/spool/squid
       - squid-logs:/var/log/squid
     environment:
-      - CACHE_SIZE_MB=1000
       - LOG_LEVEL=1
     restart: unless-stopped
     healthcheck:
@@ -221,8 +220,6 @@ spec:
           name: healthcheck
           protocol: TCP
         env:
-        - name: CACHE_SIZE_MB
-          value: "1000"
         - name: LOG_LEVEL
           value: "1"
         livenessProbe:
@@ -597,7 +594,7 @@ spec:
 
 - Horizontal scaling: Increase replicas
 - Vertical scaling: Increase CPU/memory limits
-- Cache sizing: Adjust `CACHE_SIZE_MB` based on available storage
+- Cache sizing: Adjust `cache_dir` in squid.conf based on available storage
 
 ---
 

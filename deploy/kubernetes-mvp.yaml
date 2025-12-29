@@ -114,8 +114,6 @@ spec:
           protocol: TCP
 
         env:
-        - name: CACHE_SIZE_MB
-          value: "1000"
         - name: LOG_LEVEL
           value: "1"
 

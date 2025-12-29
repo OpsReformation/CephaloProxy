@@ -37,7 +37,6 @@ CACHE_DIR="/var/spool/squid"
 # Environment variables with defaults
 SQUID_PORT=${SQUID_PORT:-3128}
 HEALTH_PORT=${HEALTH_PORT:-8080}
-CACHE_SIZE_MB=${CACHE_SIZE_MB:-250}
 LOG_LEVEL=${LOG_LEVEL:-1}
 
 # ============================================================================

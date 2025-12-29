@@ -21,8 +21,9 @@ Configure container behavior via environment variables:
 |----------|---------|-------------|
 | `SQUID_PORT` | `3128` | Proxy listening port |
 | `HEALTH_PORT` | `8080` | Health check HTTP server port |
-| `CACHE_SIZE_MB` | `250` | Ephemeral cache size in MB (used when no persistent cache mounted) |
 | `LOG_LEVEL` | `1` | Squid debug level (0=critical, 1=important, 2=verbose, 9=all) |
+
+**Note**: Cache size is configured via the `cache_dir` directive in your squid.conf file, not via environment variable.
 
 ### Example
 
@@ -30,7 +31,6 @@ Configure container behavior via environment variables:
 docker run -d \
   -e SQUID_PORT=3128 \
   -e HEALTH_PORT=8080 \
-  -e CACHE_SIZE_MB=500 \
   -e LOG_LEVEL=2 \
   cephaloproxy:latest
 ```
