@@ -1,15 +1,16 @@
+# check=skip=InvalidBaseImagePlatform
 # Multi-stage Dockerfile for Squid Proxy with SSL-bump support
 # Base: Gentoo Linux (required for compiling Squid with ssl_crtd)
 
 # =============================================================================
 # Stage 0: Portage
 # =============================================================================
-FROM gentoo/portage:20251116 AS portage
+FROM gentoo/portage:latest AS portage
 
 # =============================================================================
 # Stage 1: Builder - Compile Squid with SSL-bump support and Python
 # =============================================================================
-FROM gentoo/stage3:20251110 AS builder
+FROM gentoo/stage3:20251229 AS builder
 
 # Set shell options for safer scripting
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -41,7 +42,7 @@ RUN emerge --oneshot --quiet-build dev-lang/python:3.11 && \
 # =============================================================================
 # Stage 2: Runtime - Minimal runtime image
 # =============================================================================
-FROM gentoo/stage3:20251110
+FROM gentoo/stage3:20251229
 
 # Copy Squid binaries and libraries from builder
 COPY --from=builder /usr/sbin/squid /usr/sbin/squid

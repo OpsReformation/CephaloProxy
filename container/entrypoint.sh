@@ -41,34 +41,6 @@ CACHE_SIZE_MB=${CACHE_SIZE_MB:-250}
 LOG_LEVEL=${LOG_LEVEL:-1}
 
 # ============================================================================
-# Configuration Selection
-# ============================================================================
-
-log_info "Checking Squid configuration..."
-
-# Use custom config if mounted, otherwise use default
-if [ -f "$SQUID_CONF" ] && [ "$SQUID_CONF" != "$DEFAULT_CONF" ]; then
-    log_info "Using custom configuration: $SQUID_CONF"
-    ACTIVE_CONFIG="$SQUID_CONF"
-else
-    log_info "Using default configuration"
-    cp "$DEFAULT_CONF" "$SQUID_CONF"
-    ACTIVE_CONFIG="$SQUID_CONF"
-fi
-
-# ============================================================================
-# Configuration Validation
-# ============================================================================
-
-log_info "Validating Squid configuration..."
-if ! squid -f "$ACTIVE_CONFIG" -k parse 2>&1; then
-    log_error "Configuration validation failed!"
-    log_error "Please check your squid.conf syntax."
-    exit 1
-fi
-log_info "Configuration validation passed"
-
-# ============================================================================
 # SSL-Bump Certificate Validation (if enabled)
 # ============================================================================
 
@@ -108,6 +80,34 @@ if grep -q "ssl-bump" "$ACTIVE_CONFIG" 2>/dev/null; then
 
     log_info "SSL certificates validated and merged"
 fi
+
+# ============================================================================
+# Configuration Selection
+# ============================================================================
+
+log_info "Checking Squid configuration..."
+
+# Use custom config if mounted, otherwise use default
+if [ -f "$SQUID_CONF" ] && [ "$SQUID_CONF" != "$DEFAULT_CONF" ]; then
+    log_info "Using custom configuration: $SQUID_CONF"
+    ACTIVE_CONFIG="$SQUID_CONF"
+else
+    log_info "Using default configuration"
+    cp "$DEFAULT_CONF" "$SQUID_CONF"
+    ACTIVE_CONFIG="$SQUID_CONF"
+fi
+
+# ============================================================================
+# Configuration Validation
+# ============================================================================
+
+log_info "Validating Squid configuration..."
+if ! squid -f "$ACTIVE_CONFIG" -k parse 2>&1; then
+    log_error "Configuration validation failed!"
+    log_error "Please check your squid.conf syntax."
+    exit 1
+fi
+log_info "Configuration validation passed"
 
 # ============================================================================
 # Cache Directory Initialization
