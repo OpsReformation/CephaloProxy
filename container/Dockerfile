@@ -107,7 +107,10 @@ RUN mkdir -p \
         /var/cache/squid \
         /etc/squid \
         /tmp && \
-    chmod 770 /var/spool/squid /var/log/squid /var/lib/squid /var/run/squid /var/cache/squid
+    chmod 770 /var/spool/squid /var/log/squid /var/lib/squid /var/run/squid /var/cache/squid && \
+    # Make Squid binaries and helpers group-accessible for OpenShift arbitrary UID
+    chgrp -R 0 /usr/sbin/squid /usr/libexec/squid && \
+    chmod -R g+rX /usr/sbin/squid /usr/libexec/squid
 
 # Copy container scripts
 COPY container/entrypoint.sh /usr/local/bin/entrypoint.sh

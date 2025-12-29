@@ -46,8 +46,11 @@ LOG_LEVEL=${LOG_LEVEL:-1}
 
 log_info "Checking Squid configuration..."
 
-# Ensure runtime directories are writable (may have wrong ownership after mounts)
+# Ensure runtime directories exist and are writable (may have wrong ownership after mounts)
 for dir in /var/run/squid /var/log/squid /var/lib/squid /var/spool/squid /var/cache/squid; do
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir" 2>/dev/null || true
+    fi
     if [ ! -w "$dir" ]; then
         log_warn "Directory $dir is not writable, attempting to fix permissions"
         chmod 770 "$dir" 2>/dev/null || true
@@ -125,6 +128,9 @@ if ! squid -f "$ACTIVE_CONFIG" -k parse 2>&1; then
 fi
 log_info "Configuration validation passed"
 
+# Clean up PID file created by 'squid -k parse' to prevent "already running" error
+rm -f /var/run/squid/squid.pid /var/run/squid.pid 2>/dev/null || true
+
 # ============================================================================
 # Cache Directory Initialization
 # ============================================================================
@@ -154,6 +160,7 @@ log_info "Health check server started (PID: $HEALTHCHECK_PID)"
 # Graceful Shutdown Handler
 # ============================================================================
 
+# shellcheck disable=SC2317
 shutdown() {
     log_info "Received shutdown signal, initiating graceful shutdown..."
 
@@ -196,11 +203,13 @@ log_info "Proxy port: $SQUID_PORT"
 log_info "Cache directory: $CACHE_DIR"
 log_info "Log level: $LOG_LEVEL"
 
+# Extract PID file path from config (ignore comments, use default if not found)
+PID_FILE=$(grep -v "^[[:space:]]*#" "$ACTIVE_CONFIG" | grep "^pid_filename" | awk '{print $2}' | head -1)
+PID_FILE=${PID_FILE:-/var/run/squid/squid.pid}
+log_info "PID file location: $PID_FILE"
+
 # Start Squid in daemon mode (foreground mode -N causes helper process issues)
 squid -f "$ACTIVE_CONFIG" -d "$LOG_LEVEL"
-
-# Monitor the Squid process to keep container running
-PID_FILE="/var/run/squid/squid.pid"
 
 # Wait for PID file to be created
 for _ in {1..30}; do

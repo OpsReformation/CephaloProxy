@@ -77,6 +77,13 @@ if [ -f /etc/squid/squid.conf ] && grep -v "^[[:space:]]*#" /etc/squid/squid.con
             ls -ld /var/lib/squid 2>&1 || true
             exit 1
         }
+
+        # Ensure the SSL database directory is group-writable for OpenShift/Kubernetes arbitrary UID
+        if [ -d "$SSL_DB_DIR" ]; then
+            chmod -R g+rwX "$SSL_DB_DIR" 2>/dev/null || true
+            log_info "Set group-writable permissions on SSL database"
+        fi
+
         log_info "SSL certificate database created successfully"
     else
         log_info "SSL certificate database already exists"
