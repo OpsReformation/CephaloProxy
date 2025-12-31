@@ -5,9 +5,19 @@ on:
     branches:
       - main
       - '**-squid-proxy-container'
+    paths:
+      - 'container/**'
+      - 'tests/**'
+      - 'deploy/**'
+      - '.github/workflows/build-and-test.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - 'container/**'
+      - 'tests/**'
+      - 'deploy/**'
+      - '.github/workflows/build-and-test.yml'
   workflow_dispatch:
     inputs:
       push_to_registry:
