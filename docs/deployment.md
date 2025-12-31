@@ -10,8 +10,6 @@ Complete deployment guide for Docker, Kubernetes, and OpenShift environments.
 - [OpenShift Deployment](#openshift-deployment)
 - [Production Considerations](#production-considerations)
 
----
-
 ## Docker Deployment
 
 ### Basic Deployment
@@ -37,7 +35,7 @@ docker run -d \
   cephaloproxy:latest
 ```
 
-### With Custom Configuration
+### Docker with Custom Configuration
 
 ```bash
 docker run -d \
@@ -62,8 +60,6 @@ docker run -d \
   -v squid-cache:/var/spool/squid \
   cephaloproxy:latest
 ```
-
----
 
 ## Docker Compose Deployment
 
@@ -93,7 +89,7 @@ volumes:
   squid-cache:
 ```
 
-### With Custom Configuration
+### Docker Compose with Custom Configuration
 
 ```yaml
 version: '3.8'
@@ -131,8 +127,6 @@ docker-compose up -d
 docker-compose logs -f
 docker-compose ps
 ```
-
----
 
 ## Kubernetes Deployment
 
@@ -201,6 +195,8 @@ metadata:
     app: squid-proxy
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: squid-proxy
@@ -388,133 +384,52 @@ Add the TLS secret volume mount to your Deployment:
           claimName: squid-cache-pvc
 ```
 
----
-
 ## OpenShift Deployment
 
-OpenShift has stricter security requirements (SCC - Security Context Constraints). CephaloProxy supports arbitrary UID/GID assignment.
+**CephaloProxy works out-of-the-box on OpenShift** using the standard Kubernetes deployment manifests above. No special configuration is required.
 
-### Create Project
+### Built-in OpenShift Compatibility
+
+The container is designed to comply with OpenShift's strict Security Context Constraints (SCC):
+
+- **Arbitrary UID Support**: Runs correctly with any UID assigned by OpenShift (typically 1000000000+)
+- **GID 0 Compatibility**: All writable directories have group ownership set to GID 0 (root group) with group-writable permissions
+- **Non-root User**: Runs as UID 1000 by default, but works with any arbitrary UID
+- **Minimal Privileges**: Drops all capabilities, no privilege escalation
+
+### Deployment Steps
+
+Use the same [Kubernetes deployment manifests](#kubernetes-deployment) shown above. Simply replace `kubectl` commands with `oc`:
 
 ```bash
+# Create project
 oc new-project cephaloproxy
+
+# Deploy using standard Kubernetes manifests
+oc apply -f configmap.yaml
+oc apply -f pvc.yaml
+oc apply -f deployment.yaml
+oc apply -f service.yaml
+
+# Verify deployment
+oc get pods -l app=squid-proxy
+oc logs -l app=squid-proxy -f
+
+# Test proxy
+oc port-forward svc/squid-proxy 3128:3128
+curl -x http://localhost:3128 -I http://example.com
 ```
 
-### ConfigMap
+### OpenShift Route (Optional)
 
-```bash
-oc create configmap squid-config --from-file=squid.conf=/path/to/squid.conf
-```
-
-### PersistentVolumeClaim
+If you need external access via OpenShift Route:
 
 ```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: squid-cache-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-```
-
-### Deployment with OpenShift SCC
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: squid-proxy
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: squid-proxy
-  template:
-    metadata:
-      labels:
-        app: squid-proxy
-    spec:
-      # OpenShift security context
-      securityContext:
-        # fsGroup is set to 0 for OpenShift compatibility
-        fsGroup: 0
-      containers:
-      - name: squid
-        image: cephaloproxy:latest
-        ports:
-        - containerPort: 3128
-          name: proxy
-        - containerPort: 8080
-          name: healthcheck
-        securityContext:
-          # OpenShift will assign arbitrary UID, GID is always 0
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          capabilities:
-            drop:
-            - ALL
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          requests:
-            cpu: 500m
-            memory: 512Mi
-          limits:
-            cpu: 2000m
-            memory: 2Gi
-        volumeMounts:
-        - name: config
-          mountPath: /etc/squid/squid.conf
-          subPath: squid.conf
-          readOnly: true
-        - name: cache
-          mountPath: /var/spool/squid
-      volumes:
-      - name: config
-        configMap:
-          name: squid-config
-      - name: cache
-        persistentVolumeClaim:
-          claimName: squid-cache-pvc
-```
-
-### Service and Route
-
-```yaml
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: squid-proxy
-spec:
-  selector:
-    app: squid-proxy
-  ports:
-  - name: proxy
-    port: 3128
-    targetPort: 3128
-  - name: healthcheck
-    port: 8080
-    targetPort: 8080
----
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: squid-proxy
+  namespace: cephaloproxy
 spec:
   port:
     targetPort: proxy
@@ -522,28 +437,6 @@ spec:
     kind: Service
     name: squid-proxy
 ```
-
-### Deploy to OpenShift
-
-```bash
-oc apply -f pvc.yaml
-oc apply -f deployment.yaml
-oc apply -f service.yaml
-
-# Verify deployment
-oc get pods
-oc logs -f deployment/squid-proxy
-
-# Check UID assignment (should be arbitrary, not 1000)
-oc rsh deployment/squid-proxy id
-# Expected: uid=1000720000 gid=0(root)
-
-# Test proxy
-oc port-forward svc/squid-proxy 3128:3128
-curl -x http://localhost:3128 -I http://example.com
-```
-
----
 
 ## Production Considerations
 
@@ -567,7 +460,8 @@ spec:
       maxSurge: 1
 ```
 
-**Note**: Squid cache is local to each pod. For shared cache, consider external caching solutions or parent proxy hierarchy.
+**Note**: Squid cache is local to each pod. For shared cache, consider external
+caching solutions or parent proxy hierarchy.
 
 ### Monitoring
 
@@ -595,8 +489,6 @@ spec:
 - Horizontal scaling: Increase replicas
 - Vertical scaling: Increase CPU/memory limits
 - Cache sizing: Adjust `cache_dir` in squid.conf based on available storage
-
----
 
 ## Next Steps
 

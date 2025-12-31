@@ -8,8 +8,6 @@
 - Basic understanding of HTTP proxies
 - (Optional) Kubernetes/OpenShift cluster for orchestrated deployment
 
-
-
 ## Quick Start Options
 
 Choose your deployment scenario:
@@ -25,8 +23,6 @@ Choose your deployment scenario:
    to K8s cluster
 5. [**OpenShift Deployment (10 minutes)**](#5-openshift-deployment) - Deploy to
    OpenShift with SCC
-
-
 
 ## 1. Basic HTTP Proxy
 
@@ -69,8 +65,6 @@ docker logs squid-proxy
 - HTTP requests proxied successfully
 - Health checks return 200 OK
 - Logs show "Accepting HTTP socket connections"
-
-
 
 ## 2. Traffic Filtering with ACLs
 
@@ -145,8 +139,6 @@ curl -x http://localhost:3128 -I http://facebook.com
 - Allowed domains return 200 OK
 - Blocked domains return 403 Forbidden
 - Logs show "TCP_DENIED" for blocked requests
-
-
 
 ## 3. SSL-Bump HTTPS Caching
 
@@ -260,8 +252,6 @@ time curl -x http://localhost:3128 https://example.com
 - Logs show "TCP_HIT" for cached content
 - Cache hit rate > 40% for repeated requests
 
-
-
 ## 4. Kubernetes Deployment
 
 **Use Case**: Deploy to Kubernetes cluster with persistent cache
@@ -374,8 +364,6 @@ kubectl port-forward svc/squid-proxy 3128:3128 8080:8080
 # Test proxy (in another terminal)
 curl -x http://localhost:3128 -I http://example.com
 ```
-
-
 
 ## 5. OpenShift Deployment
 
@@ -512,8 +500,6 @@ oc port-forward svc/squid-proxy 3128:3128
 curl -x http://localhost:3128 -I http://example.com
 ```
 
-
-
 ## Troubleshooting
 
 ### Container Won't Start
@@ -577,8 +563,6 @@ docker exec squid-proxy df -h /var/spool/squid
 docker exec squid-proxy squid -f /etc/squid/squid.conf -k check
 ```
 
-
-
 ## Next Steps
 
 - **Production Deployment**: Review `docs/deployment.md` for best practices
@@ -586,8 +570,6 @@ docker exec squid-proxy squid -f /etc/squid/squid.conf -k check
   directives
 - **Monitoring**: Set up Prometheus metrics collection (future feature)
 - **Security Hardening**: Review SSL/TLS settings, ACL rules, and audit logging
-
-
 
 ## Quick Reference
 
@@ -597,14 +579,14 @@ docker exec squid-proxy squid -f /etc/squid/squid.conf -k check
 | Health Checks | 8080 | /health (liveness), /ready (readiness) |
 
 | Volume Mount | Purpose | Required |
-|--------------|---------|----------|
+| ------------ | ------- | -------- |
 | /etc/squid/squid.conf | Custom configuration | Optional (defaults provided) |
 | /etc/squid/conf.d/ | ACL files | Optional |
 | /etc/squid/ssl_cert/ | SSL certificates | Required for SSL-bump |
 | /var/spool/squid | Persistent cache | Optional (ephemeral default) |
 
 | Environment Variable | Default | Purpose |
-|---------------------|---------|---------|
+| ------------------- | ------- | ------- |
 | SQUID_PORT | 3128 | Proxy port |
 | HEALTH_PORT | 8080 | Health check port |
 | CACHE_SIZE_MB | 250 | Ephemeral cache size |

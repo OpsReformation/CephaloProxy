@@ -12,7 +12,7 @@ Common issues, solutions, and debugging techniques for CephaloProxy.
 - [Logging and Debugging](#logging-and-debugging)
 - [OpenShift-Specific Issues](#openshift-specific-issues)
 
----
+
 
 ## Container Won't Start
 
@@ -33,6 +33,7 @@ oc logs <pod-name>
 **Cause**: Invalid squid.conf syntax
 
 **Solution**:
+
 ```bash
 # Validate config manually
 docker run --rm \
@@ -51,6 +52,7 @@ docker run --rm \
 **Cause**: Container UID (1000) cannot write to cache directory
 
 **Solution**:
+
 ```bash
 # Docker/Podman
 sudo chown -R 1000:1000 /path/to/cache
@@ -62,6 +64,7 @@ sudo chmod 770 /path/to/cache  # Group-writable
 ```
 
 **Verify inside container**:
+
 ```bash
 docker exec <container-name> ls -la /var/spool/squid
 docker exec <container-name> id
@@ -72,6 +75,7 @@ docker exec <container-name> id
 **Cause**: Port 3128 or 8080 already in use
 
 **Solution**:
+
 ```bash
 # Check what's using the port
 sudo lsof -i :3128
@@ -91,6 +95,7 @@ ERROR: SSL-bump enabled but CA certificate not found: /etc/squid/ssl_cert/ca.pem
 ```
 
 **Solution**:
+
 ```bash
 # Verify certificates exist
 docker exec <container-name> ls -la /etc/squid/ssl_cert/
@@ -100,8 +105,6 @@ docker run -d \
   -v /path/to/certs:/etc/squid/ssl_cert:ro \
   cephaloproxy:latest
 ```
-
----
 
 ## Health Checks Failing
 
@@ -128,6 +131,7 @@ docker exec <container-name> ps aux | grep squid
 ```
 
 **If Squid is not running, check logs**:
+
 ```bash
 docker logs <container-name>
 ```
@@ -143,6 +147,7 @@ docker exec <container-name> rm /var/spool/squid/test
 #### Check 4: Firewall blocking health check port
 
 **Kubernetes/OpenShift**:
+
 ```bash
 # Test health check directly from inside pod
 kubectl exec <pod-name> -- curl http://localhost:8080/health
@@ -150,8 +155,6 @@ kubectl exec <pod-name> -- curl http://localhost:8080/health
 # If this works but external check fails, check network policies
 kubectl get networkpolicies
 ```
-
----
 
 ## Proxy Not Working
 
@@ -182,6 +185,7 @@ curl -x http://localhost:3128 -v http://example.com
 **Error**: `HTTP 403 Forbidden` or `Access Denied`
 
 **Check access logs**:
+
 ```bash
 docker exec <container-name> tail -f /var/log/squid/access.log
 ```
@@ -189,6 +193,7 @@ docker exec <container-name> tail -f /var/log/squid/access.log
 **Look for**: `TCP_DENIED`
 
 **Solution**: Adjust ACLs in squid.conf
+
 ```squid.conf
 # Add your client IP to allowed network
 acl mynetwork src 192.168.1.0/24
@@ -214,8 +219,6 @@ docker exec <container-name> curl http://localhost:3128
 # Test from outside (may be blocked)
 curl http://<container-ip>:3128
 ```
-
----
 
 ## SSL-Bump Issues
 
@@ -245,6 +248,7 @@ curl -x http://localhost:3128 -k https://example.com
 **Error in logs**: `WARNING: CA private key is world-readable`
 
 **Solution**:
+
 ```bash
 chmod 640 /path/to/ca.key
 chmod 644 /path/to/ca.pem
@@ -267,13 +271,12 @@ docker exec <container-name> ls -la /var/lib/squid/ssl_db
 **Error**: `ssl_crtd: No such file or directory`
 
 **Check**:
+
 ```bash
 docker exec <container-name> ls -la /usr/lib64/squid/ssl_crtd
 ```
 
 **This should not happen if using official image**
-
----
 
 ## Performance Problems
 
@@ -308,6 +311,7 @@ kubectl top pod <pod-name>
 ```
 
 **High CPU/Memory**:
+
 - Increase resource limits
 - Reduce cache size if memory-constrained
 - Check for excessive logging (debug_options ALL,9)
@@ -323,6 +327,7 @@ docker exec <container-name> iostat -x 1
 ```
 
 **Solution**:
+
 - Use faster storage (SSD)
 - Reduce cache size
 - Use memory cache (cache_mem) more aggressively
@@ -351,18 +356,18 @@ max_filedescriptors 8192
 http_port_max_connections 2000
 ```
 
----
-
 ## Logging and Debugging
 
 ### Enable Verbose Logging
 
 **Temporary (runtime)**:
+
 ```bash
 docker exec <container-name> squid -k debug
 ```
 
 **Permanent (squid.conf)**:
+
 ```squid.conf
 # Increase debug level
 debug_options ALL,2
@@ -377,16 +382,19 @@ debug_options 28,3
 ### Access Logs
 
 **View access log**:
+
 ```bash
 docker exec <container-name> tail -f /var/log/squid/access.log
 ```
 
 **Access log format**:
+
 ```
 timestamp duration client_ip result_code/status bytes method URL - hierarchy content_type
 ```
 
 **Common result codes**:
+
 - `TCP_HIT`: Cache hit
 - `TCP_MISS`: Cache miss, fetched from origin
 - `TCP_DENIED`: Access denied by ACL
@@ -396,11 +404,13 @@ timestamp duration client_ip result_code/status bytes method URL - hierarchy con
 ### Cache Logs
 
 **View cache log**:
+
 ```bash
 docker exec <container-name> tail -f /var/log/squid/cache.log
 ```
 
 **Look for**:
+
 - Startup messages
 - Configuration errors
 - Warning messages
@@ -428,8 +438,6 @@ sudo apt-get install squid-analyzer
 squid-analyzer /path/to/access.log
 ```
 
----
-
 ## OpenShift-Specific Issues
 
 ### Symptom: Container fails with permission errors on OpenShift
@@ -446,6 +454,7 @@ oc rsh deployment/squid-proxy id
 #### Check 2: Directory permissions
 
 **Directories must be group-writable (GID 0)**:
+
 ```bash
 # Inside container
 oc rsh deployment/squid-proxy ls -la /var/spool/squid
@@ -468,19 +477,19 @@ oc describe pod <pod-name> | grep -A 5 securityContext
 #### Check 4: fsGroup setting
 
 **Deployment must set fsGroup to 0**:
+
 ```yaml
 spec:
   securityContext:
     fsGroup: 0
 ```
 
----
-
 ## Getting Help
 
 If you've tried the above troubleshooting steps and still have issues:
 
 1. **Collect diagnostic information**:
+
 ```bash
 # Container logs
 docker logs <container-name> > logs.txt
@@ -496,6 +505,7 @@ curl -x http://localhost:3128 -v http://example.com > test-output.txt 2>&1
 ```
 
 2. **Check for known issues**:
+
    - GitHub Issues: https://github.com/yourorg/cephaloproxy/issues
    - Squid FAQ: http://wiki.squid-cache.org/SquidFaq
 
@@ -503,8 +513,6 @@ curl -x http://localhost:3128 -v http://example.com > test-output.txt 2>&1
    - Include all diagnostic information
    - Describe expected vs actual behavior
    - Include steps to reproduce
-
----
 
 ## Quick Reference
 

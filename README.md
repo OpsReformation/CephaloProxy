@@ -1,19 +1,24 @@
 # CephaloProxy - Squid Proxy Container
 
-A containerized Squid proxy with SSL-bump support for HTTPS caching, traffic filtering via ACLs, and flexible configuration.
+A containerized Squid proxy with SSL-bump support for HTTPS caching, traffic
+filtering via ACLs, and flexible configuration.
 
 ## Features
 
 - **Zero-configuration deployment**: Works out of the box with sensible defaults
 - **HTTPS caching**: SSL-bump support for decrypting and caching HTTPS traffic
 - **Traffic filtering**: ACL-based domain blocking and access control
-- **Health checks**: HTTP endpoints for Kubernetes/OpenShift liveness and readiness probes
-- **OpenShift compatible**: Supports arbitrary UID/GID for security context constraints
-- **Production-ready**: Non-root execution, graceful shutdown, configuration validation
+- **Health checks**: HTTP endpoints for Kubernetes/OpenShift liveness and
+  readiness probes
+- **OpenShift compatible**: Supports arbitrary UID/GID for security context
+  constraints
+- **Production-ready**: Non-root execution, graceful shutdown, configuration
+  validation
 
 ## Quick Start
 
-See [quickstart guide](specs/001-squid-proxy-container/quickstart.md) for detailed deployment instructions.
+See the [deployment guide](docs/deployment.md) for detailed deployment
+instructions.
 
 ### Basic Usage (Docker)
 
@@ -46,23 +51,31 @@ curl http://localhost:8080/ready   # Readiness probe
 
 ## Documentation
 
-- [Deployment Guide](docs/deployment.md) - Docker, Kubernetes, OpenShift deployment
+- [Deployment Guide](docs/deployment.md) - Docker, Kubernetes, OpenShift
+  deployment
 - [Configuration Reference](docs/configuration.md) - All configuration options
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 
 ## Constitutional Compliance
 
-This project adheres to the [CephaloProxy Constitution](specs/001-squid-proxy-container/plan.md#constitution-check):
+This project adheres to the
+[CephaloProxy Constitution](specs/001-squid-proxy-container/plan.md#constitution-check):
 
-- **Container-First Architecture**: ✅ Fully containerized with multi-stage Dockerfile, health checks, graceful shutdown
-- **Test-First Development**: ✅ Integration tests organized by user story, TDD workflow
-- **Squid Proxy Integration**: ✅ Squid 6.x pinned, declarative configuration, validation on startup
-- **Security by Default**: ✅ Non-root user (UID 1000/GID 0), secrets via volumes, no hardcoded credentials
-- **Observable by Default**: ✅ Health endpoints (/health, /ready), Squid access and cache logs
+- **Container-First Architecture**: ✅ Fully containerized with multi-stage
+  Dockerfile, health checks, graceful shutdown
+- **Test-First Development**: ✅ Integration tests organized by user story, TDD
+  workflow
+- **Squid Proxy Integration**: ✅ Squid 6.x pinned, declarative configuration,
+  validation on startup
+- **Security by Default**: ✅ Non-root user (UID 1000/GID 0), secrets via
+  volumes, no hardcoded credentials
+- **Observable by Default**: ✅ Health endpoints (/health, /ready), Squid access
+  and cache logs
 
 ## Architecture
 
-Built on Gentoo Linux to compile Squid with SSL-bump support (not available in most binary distributions).
+Built on Gentoo Linux to compile Squid with SSL-bump support (not available in
+most binary distributions).
 
 ### Ports
 
@@ -72,7 +85,7 @@ Built on Gentoo Linux to compile Squid with SSL-bump support (not available in m
 ### Volume Mounts
 
 | Path | Purpose | Required |
-|------|---------|----------|
+| ---- | ------- | -------- |
 | `/etc/squid/squid.conf` | Custom configuration | Optional |
 | `/etc/squid/conf.d/` | ACL files | Optional |
 | `/etc/squid/ssl_cert/` | TLS secret (tls.crt, tls.key) | Required for SSL-bump |

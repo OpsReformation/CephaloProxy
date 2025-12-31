@@ -15,13 +15,13 @@ tests/
 
 ## Commands
 
-# Add commands for 
+### Add commands for
 
-## Code Style
+#### Code Style
 
 : Follow standard conventions
 
-## Recent Changes
+#### Recent Changes
 
 - 001-squid-proxy-container: Added
 

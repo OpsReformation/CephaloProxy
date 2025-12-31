@@ -1,6 +1,7 @@
 # Configuration Reference: CephaloProxy
 
-Complete reference for all configuration options, environment variables, and Squid directives.
+Complete reference for all configuration options, environment variables, and
+Squid directives.
 
 ## Table of Contents
 
@@ -11,19 +12,18 @@ Complete reference for all configuration options, environment variables, and Squ
 - [ACL Configuration](#acl-configuration)
 - [Advanced Features](#advanced-features)
 
----
-
 ## Environment Variables
 
 Configure container behavior via environment variables:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| -------- | ------- | ----------- |
 | `SQUID_PORT` | `3128` | Proxy listening port |
 | `HEALTH_PORT` | `8080` | Health check HTTP server port |
 | `LOG_LEVEL` | `1` | Squid debug level (0=critical, 1=important, 2=verbose, 9=all) |
 
-**Note**: Cache size is configured via the `cache_dir` directive in your squid.conf file, not via environment variable.
+**Note**: Cache size is configured via the `cache_dir` directive in your
+squid.conf file, not via environment variable.
 
 ### Example
 
@@ -35,14 +35,12 @@ docker run -d \
   cephaloproxy:latest
 ```
 
----
-
 ## Volume Mounts
 
 ### Required Mounts (Optional - defaults provided)
 
 | Path | Purpose | Default Behavior | Recommended for Production |
-|------|---------|------------------|---------------------------|
+| ---- | ------- | ---------------- | -------------------------- |
 | `/etc/squid/squid.conf` | Main Squid configuration | Use embedded default | Mount custom config |
 | `/etc/squid/conf.d/` | ACL files directory | Empty (no filtering) | Mount ACL files |
 | `/etc/squid/ssl_cert/` | TLS secret (tls.crt, tls.key) | Empty (ssl-bump disabled) | Mount TLS secret for SSL-bump |
@@ -52,18 +50,18 @@ docker run -d \
 ### Mount Permissions
 
 **Docker/Podman** (Fixed UID 1000):
+
 ```bash
 chown -R 1000:1000 /host/mount/path
 chmod 750 /host/mount/path
 ```
 
 **OpenShift** (Arbitrary UID, GID 0):
+
 ```bash
 chown -R 1000:0 /host/mount/path
 chmod 770 /host/mount/path  # Group-writable
 ```
-
----
 
 ## Squid Configuration Directives
 
@@ -150,13 +148,12 @@ max_filedescriptors 4096
 http_port_max_connections 1000
 ```
 
----
-
 ## SSL-Bump Configuration
 
 ### Prerequisites
 
 1. Generate CA certificate and key:
+
 ```bash
 openssl genrsa -out tls.key 4096
 openssl req -new -x509 -key tls.key -out tls.crt -days 3650 \
@@ -164,6 +161,7 @@ openssl req -new -x509 -key tls.key -out tls.crt -days 3650 \
 ```
 
 2. Create Kubernetes TLS secret:
+
 ```bash
 kubectl create secret tls squid-ca-cert \
   --cert=tls.crt \
@@ -175,6 +173,7 @@ kubectl create secret tls squid-ca-cert \
 ### How SSL-Bump Works in CephaloProxy
 
 When SSL-bump is enabled:
+
 1. Mount TLS secret containing `tls.crt` and `tls.key` to `/etc/squid/ssl_cert/`
 2. The entrypoint script merges them into `/var/lib/squid/squid-ca.pem`
 3. Squid uses the merged certificate to intercept and decrypt HTTPS traffic
@@ -220,8 +219,6 @@ ssl_bump stare step2
 ssl_bump bump bump_domains
 ssl_bump splice all  # Don't bump other domains
 ```
-
----
 
 ## ACL Configuration
 
@@ -313,8 +310,6 @@ delay_access 1 allow large_downloads
 delay_access 1 deny all
 ```
 
----
-
 ## Advanced Features
 
 ### Authentication
@@ -332,6 +327,7 @@ http_access allow authenticated
 ```
 
 Create password file:
+
 ```bash
 htpasswd -c /etc/squid/passwords username
 ```
@@ -375,8 +371,6 @@ request_header_add X-Custom-Header "value" all
 error_directory /etc/squid/errors/en
 ```
 
----
-
 ## Configuration Validation
 
 Always validate configuration before deploying:
@@ -388,8 +382,6 @@ squid -k parse -f /etc/squid/squid.conf
 # Via docker exec
 docker exec squid-proxy squid -k parse -f /etc/squid/squid.conf
 ```
-
----
 
 ## Configuration Examples
 
@@ -452,10 +444,9 @@ http_access allow localnet
 http_access deny all
 ```
 
----
-
 ## Next Steps
 
 - [Deployment Guide](deployment.md) - Deploy to Docker, Kubernetes, OpenShift
 - [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
-- [Squid Official Documentation](http://www.squid-cache.org/Doc/config/) - Complete Squid reference
+- [Squid Official Documentation](http://www.squid-cache.org/Doc/config/) -
+  Complete Squid reference
