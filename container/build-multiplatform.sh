@@ -147,7 +147,7 @@ if [[ -n "$PUSH_SEPARATELY" ]]; then
 
     # Build and push each platform
     for platform in "${PLATFORMS[@]}"; do
-        platform_clean=$(echo "$platform" | sed 's|linux/||')
+        platform_clean="${platform//linux\//}"
         platform_tag="${FULL_IMAGE_NAME}-${platform_clean}"
 
         echo "Building for $platform..."
@@ -167,7 +167,7 @@ if [[ -n "$PUSH_SEPARATELY" ]]; then
     echo "Creating multi-platform manifest..."
     manifest_images=()
     for platform in "${PLATFORMS[@]}"; do
-        platform_clean=$(echo "$platform" | sed 's|linux/||')
+        platform_clean="${platform//linux\//}"
         manifest_images+=("${FULL_IMAGE_NAME}-${platform_clean}")
     done
 
