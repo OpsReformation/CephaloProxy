@@ -233,7 +233,8 @@ Map bash script functionality in `init-squid.sh` and `entrypoint.sh` to Python s
 
 **Functionality**:
 1. Cache directory setup (lines 29-51)
-   - Check if writable, fallback to ephemeral cache
+   - **Baseline behavior**: Check if writable, fallback to ephemeral cache
+   - **New behavior (Python)**: Fail if cache_dir configured but not writable (FR-005)
    - Initialize cache structure with `squid -z`
 2. SSL database initialization (lines 56-90)
    - Detect SSL-bump config

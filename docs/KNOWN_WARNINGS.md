@@ -40,7 +40,14 @@ This document explains expected warnings you may see in Squid logs when running 
 
 **Status**: Fixed in latest version
 
-**Fix**: Created `/var/run/squid` directory and set `pid_filename /var/run/squid/squid.pid`
+**Fix**: Created `/var/run/squid` directory and set `pid_filename /var/run/squid/squid.pid` in default config
+
+**Important**: If you provide a custom `squid.conf`, you **must** include this line:
+```
+pid_filename /var/run/squid/squid.pid
+```
+
+The `/run` directory is not writable in distroless containers. Without this directive, Squid will attempt to write to `/run/squid.pid` and fail with permission denied.
 
 ---
 

@@ -242,11 +242,12 @@ docs/
 
 **Python Scripts**:
 1. **init-squid.py** (replaces init-squid.sh)
-   - Cache directory initialization (`squid -z`)
-   - SSL database initialization (`security_file_certgen -c`)
-   - Permission validation (writable cache/logs)
-   - Cache size validation (disk space checks)
-   - Logging functions (Python logging module)
+   - Parse squid.conf to detect cache_dir and SSL-bump configuration (FR-005)
+   - Cache directory initialization: Fail if cache_dir configured but volume not writable, skip if no cache_dir (pure proxy mode)
+   - SSL database initialization (`security_file_certgen -c`) if SSL-bump detected
+   - Permission validation (required volumes fail, optional volumes warn)
+   - Cache size validation (disk space checks vs configured cache_dir size)
+   - Logging functions (Python logging module with timestamps and severity levels)
 
 2. **entrypoint.sh** (simplified)
    - Execute init-squid.py

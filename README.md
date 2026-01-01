@@ -89,7 +89,9 @@ most binary distributions).
 | `/etc/squid/squid.conf` | Custom configuration | Optional |
 | `/etc/squid/conf.d/` | ACL files | Optional |
 | `/etc/squid/ssl_cert/` | TLS secret (tls.crt, tls.key) | Required for SSL-bump |
-| `/var/spool/squid` | Persistent cache | Optional |
+| `/var/spool/squid` | Persistent cache | Required if `cache_dir` configured* |
+
+\* If your `squid.conf` contains a `cache_dir` directive, the cache volume **must** be mounted and writable. Omit `cache_dir` for pure proxy mode (no caching).
 
 ## Performance
 
