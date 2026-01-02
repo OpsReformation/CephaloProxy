@@ -101,7 +101,8 @@ RUN mkdir -p \
 # NOTE: Using debian12 as debian13 distroless images not yet available (Jan 2026)
 # Migration path: When gcr.io/distroless/python3-debian13 becomes stable (Q2-Q3 2026),
 # update this base image reference. See research.md for details.
-FROM gcr.io/distroless/python3-debian12
+# Pinned to specific digest for immutability and reproducible builds
+FROM gcr.io/distroless/python3-debian12@sha256:8ce6bba3f793ba7d834467dfe18983c42f9b223604970273e9e3a22b1891fc27
 
 # Architecture detection for multi-platform builds
 # TARGETARCH is automatically set by Docker buildx (amd64, arm64, etc.)
