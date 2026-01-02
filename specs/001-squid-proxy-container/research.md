@@ -107,7 +107,7 @@ fixtures
 - Docker Compose allows multi-container test scenarios (proxy + client +
   upstream server)
 - No additional language dependencies in CI/CD pipeline
-- Easy to run locally: `./tests/integration/test_basic_proxy.sh`
+- Easy to run locally: `bats tests/integration/test-basic-proxy.bats`
 
 **Alternatives Considered**:
 

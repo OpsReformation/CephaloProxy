@@ -41,7 +41,7 @@
 
 ### Test Execution
 
-**Command**: `bats tests/integration/test_basic_proxy.sh tests/integration/test_health_checks.sh tests/integration/test_acl_filtering.sh`
+**Command**: `bats tests/integration/test-basic-proxy.bats tests/integration/test-health-checks.bats tests/integration/test-acl-filtering.bats`
 
 **Environment Variables**: `IMAGE_NAME=cephaloproxy:distroless`
 

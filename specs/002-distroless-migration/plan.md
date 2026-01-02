@@ -108,9 +108,9 @@ container/
 
 tests/
 ├── integration/
-│   ├── test_basic_proxy.sh          # UNCHANGED: Must pass (SC-004)
-│   ├── test_health_checks.sh        # UNCHANGED: Must pass (SC-004)
-│   └── test_acl_filtering.sh        # UNCHANGED: Must pass (SC-004)
+│   ├── test-basic-proxy.bats        # UNCHANGED: Must pass (SC-004)
+│   ├── test-health-checks.bats      # UNCHANGED: Must pass (SC-004)
+│   └── test-acl-filtering.bats      # UNCHANGED: Must pass (SC-004)
 └── unit/
     └── test_init_squid.py           # NEW: Python unittest for init-squid.py
 
@@ -355,7 +355,7 @@ Expected task categories:
 - Feature Specification: `specs/002-distroless-migration/spec.md`
 - Requirements Checklist: `specs/002-distroless-migration/checklists/requirements.md` (PASSED)
 - Current Dockerfile: `container/Dockerfile` (Gentoo-based baseline)
-- Existing Integration Tests: `tests/integration/test_*.sh`
+- Existing Integration Tests: `tests/integration/test-*.bats`
 
 **Research Sources**:
 - Google Distroless Images: https://github.com/GoogleContainerTools/distroless

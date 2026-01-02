@@ -78,13 +78,13 @@ verify health checks respond
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
 - [X] T013 [P] [US1] Write integration test in
-  tests/integration/test_basic_proxy.sh for default container startup
+  tests/integration/test-basic-proxy.bats for default container startup
 - [X] T014 [P] [US1] Write integration test in
-  tests/integration/test_basic_proxy.sh for HTTP proxy functionality
+  tests/integration/test-basic-proxy.bats for HTTP proxy functionality
 - [X] T015 [P] [US1] Write integration test in
-  tests/integration/test_health_checks.sh for /health endpoint
+  tests/integration/test-health-checks.bats for /health endpoint
 - [X] T016 [P] [US1] Write integration test in
-  tests/integration/test_health_checks.sh for /ready endpoint
+  tests/integration/test-health-checks.bats for /ready endpoint
 - [X] T017 [US1] Run all US1 tests and verify they FAIL (red phase)
 
 ### Implementation for User Story 1
@@ -126,9 +126,9 @@ denied, allowed traffic passes
 ### Tests for User Story 2 (REQUIRED - Test-First Development)
 
 - [X] T030 [P] [US2] Write integration test in
-  tests/integration/test_acl_filtering.sh for blocked domain denial
+  tests/integration/test-acl-filtering.bats for blocked domain denial
 - [X] T031 [P] [US2] Write integration test in
-  tests/integration/test_acl_filtering.sh for allowed domain success
+  tests/integration/test-acl-filtering.bats for allowed domain success
 - [X] T032 [P] [US2] Create test fixture in
   tests/fixtures/test-configs/blocked-domains.acl with sample blocked domains
 - [X] T033 [P] [US2] Create test fixture in
@@ -171,9 +171,9 @@ request cache hit
 ### Tests for User Story 3 (REQUIRED - Test-First Development)
 
 - [X] T044 [P] [US3] Write integration test in
-  tests/integration/test_ssl_bump.sh for HTTPS interception
+  tests/integration/test-ssl-bump.bats for HTTPS interception
 - [X] T045 [P] [US3] Write integration test in
-  tests/integration/test_ssl_bump.sh for cache hit verification
+  tests/integration/test-ssl-bump.bats for cache hit verification
 - [X] T046 [P] [US3] Generate test CA certificate in
   tests/fixtures/test-certs/ca.pem and ca.key
 - [X] T047 [P] [US3] Create test SSL-bump config in
@@ -219,9 +219,9 @@ required
 ### Tests for User Story 4 (REQUIRED - Test-First Development)
 
 - [X] T060 [P] [US4] Write integration test in
-  tests/integration/test_custom_config.sh for custom config loading
+  tests/integration/test-custom-config.bats for custom config loading
 - [X] T061 [P] [US4] Write integration test in
-  tests/integration/test_custom_config.sh for invalid config rejection
+  tests/integration/test-custom-config.bats for invalid config rejection
 - [X] T062 [P] [US4] Create test fixture in
   tests/fixtures/test-configs/custom-advanced.conf with auth settings
 - [X] T063 [P] [US4] Create test fixture in
@@ -405,10 +405,10 @@ Task T009: "Create default squid.conf template in container/squid.conf.default"
 
 ```bash
 # Launch all test writing for US1 together (TDD red phase):
-Task T013: "Write test for default container startup in tests/integration/test_basic_proxy.sh"
-Task T014: "Write test for HTTP proxy functionality in tests/integration/test_basic_proxy.sh"
-Task T015: "Write test for /health endpoint in tests/integration/test_health_checks.sh"
-Task T016: "Write test for /ready endpoint in tests/integration/test_health_checks.sh"
+Task T013: "Write test for default container startup in tests/integration/test-basic-proxy.bats"
+Task T014: "Write test for HTTP proxy functionality in tests/integration/test-basic-proxy.bats"
+Task T015: "Write test for /health endpoint in tests/integration/test-health-checks.bats"
+Task T016: "Write test for /ready endpoint in tests/integration/test-health-checks.bats"
 ```
 
 ## Implementation Strategy

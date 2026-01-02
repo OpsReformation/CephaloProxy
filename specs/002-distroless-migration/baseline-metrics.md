@@ -94,9 +94,9 @@ trivy image --severity HIGH,CRITICAL cephaloproxy:current | grep "Total:"
 ```bash
 # Run existing integration tests
 export IMAGE_NAME=cephaloproxy:current
-bats tests/integration/test_basic_proxy.sh
-bats tests/integration/test_health_checks.sh
-bats tests/integration/test_acl_filtering.sh
+bats tests/integration/test-basic-proxy.bats
+bats tests/integration/test-health-checks.bats
+bats tests/integration/test-acl-filtering.bats
 ```
 
 **Test Coverage**:

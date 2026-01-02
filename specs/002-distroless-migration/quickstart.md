@@ -59,9 +59,9 @@ The distroless image must pass all existing integration tests without modificati
 export IMAGE_NAME=cephaloproxy:distroless
 
 # Run all integration tests
-bats tests/integration/test_basic_proxy.sh \
-     tests/integration/test_health_checks.sh \
-     tests/integration/test_acl_filtering.sh
+bats tests/integration/test-basic-proxy.bats \
+     tests/integration/test-health-checks.bats \
+     tests/integration/test-acl-filtering.bats
 
 # Expected: 100% pass rate
 ```
@@ -405,6 +405,6 @@ docker run -it --rm --pid=container:cephaloproxy debian:13-slim /bin/bash
 - **Research Findings**: [research.md](research.md)
 - **Task Breakdown**: [tasks.md](tasks.md)
 - **Dockerfile**: `/container/Dockerfile`
-- **Integration Tests**: `/tests/integration/*.sh`
+- **Integration Tests**: `/tests/integration/*.bats`
 
 For questions or issues, refer to the troubleshooting section above or consult the implementation plan.
