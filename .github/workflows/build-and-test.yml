@@ -162,7 +162,7 @@ jobs:
     needs: build
     strategy:
       matrix:
-        test: [basic_proxy, health_checks, acl_filtering]
+        test: [basic-proxy, health-checks, acl-filtering]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -185,7 +185,7 @@ jobs:
       - name: Run integration tests - ${{ matrix.test }}
         run: |
           export IMAGE_NAME="${{ env.IMAGE_NAME }}:test"
-          bats tests/integration/test_${{ matrix.test }}.sh
+          bats tests/integration/test-${{ matrix.test }}.bats
 
   security-scan:
     name: Security Vulnerability Scan
