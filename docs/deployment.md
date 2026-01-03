@@ -438,6 +438,139 @@ spec:
     name: squid-proxy
 ```
 
+## Custom CA Certificates (Enterprise Extension)
+
+**Note**: The distroless CephaloProxy image includes default system CA certificates but does NOT include tools like `update-ca-certificates` or a shell. If your organization requires custom CA certificates (e.g., for internal PKI), you must extend the image using a multi-stage build pattern.
+
+### Why Custom Extension is Required
+
+The distroless runtime is intentionally minimal:
+- ✅ Includes: Default system CAs from Debian (`/etc/ssl/certs/ca-certificates.crt`)
+- ❌ No shell (`/bin/sh`, `/bin/bash`)
+- ❌ No package manager (`apt`, `dpkg`)
+- ❌ No update tools (`update-ca-certificates`)
+
+This design maximizes security but requires custom CA injection at build time.
+
+### Method 1: Multi-Stage Extension (Recommended)
+
+Create a custom Dockerfile that extends CephaloProxy:
+
+```dockerfile
+# Dockerfile.custom-ca
+FROM debian:13-slim AS ca-builder
+
+# Copy your custom CA certificate(s)
+COPY corporate-ca.crt /usr/local/share/ca-certificates/
+COPY internal-pki.crt /usr/local/share/ca-certificates/
+
+# Update CA certificates bundle
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Extend the distroless CephaloProxy image
+FROM cephaloproxy:latest
+
+# Copy the updated CA bundle from builder stage
+COPY --from=ca-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Metadata
+LABEL custom-ca="true"
+LABEL ca-update-date="2026-01-01"
+```
+
+Build your custom image:
+
+```bash
+docker build -t cephaloproxy:custom-ca -f Dockerfile.custom-ca .
+```
+
+### Method 2: Bundle Multiple CAs
+
+For organizations with multiple internal CAs:
+
+```dockerfile
+# Dockerfile.multi-ca
+FROM debian:13-slim AS ca-builder
+
+# Copy all custom CAs from a directory
+COPY certs/*.crt /usr/local/share/ca-certificates/
+
+# Update CA bundle
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+FROM cephaloproxy:latest
+COPY --from=ca-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+```
+
+### Method 3: Runtime Mount (Alternative)
+
+If your custom CA is in PEM format, you can mount it directly:
+
+```bash
+docker run -d \
+  -v /path/to/custom-ca.crt:/etc/ssl/certs/custom-ca.crt:ro \
+  -e SSL_CERT_FILE=/etc/ssl/certs/custom-ca.crt \
+  cephaloproxy:custom-ca
+```
+
+**Note**: This method only works if your application respects `SSL_CERT_FILE`. For system-wide trust, use Method 1.
+
+### Kubernetes Deployment with Custom CAs
+
+Create a ConfigMap with your custom CA bundle:
+
+```bash
+kubectl create configmap custom-ca-bundle \
+  --from-file=ca-certificates.crt=/path/to/updated-ca-bundle.crt \
+  -n default
+```
+
+Mount it in your Deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: squid-proxy
+spec:
+  template:
+    spec:
+      containers:
+      - name: squid
+        image: cephaloproxy:custom-ca
+        volumeMounts:
+        - name: custom-ca
+          mountPath: /etc/ssl/certs/ca-certificates.crt
+          subPath: ca-certificates.crt
+          readOnly: true
+      volumes:
+      - name: custom-ca
+        configMap:
+          name: custom-ca-bundle
+```
+
+### Verification
+
+Test that custom CAs are trusted:
+
+```bash
+# Start container with custom CA
+docker run -d --name ca-test cephaloproxy:custom-ca
+
+# Test TLS connection to internal service
+docker exec ca-test curl https://internal.company.com
+
+# Should succeed without certificate errors
+```
+
+For detailed examples and troubleshooting, see [quickstart.md](../specs/002-distroless-migration/quickstart.md#3-extending-with-custom-cas-enterprise-use-case).
+
 ## Production Considerations
 
 ### Resource Limits

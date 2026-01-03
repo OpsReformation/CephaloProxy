@@ -26,6 +26,16 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+.pytest_cache/
+.hypothesis/
+
 # Environment files
 .env*
 !.env.example

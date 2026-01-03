@@ -135,14 +135,14 @@ rm -f /var/run/squid/squid.pid /var/run/squid.pid 2>/dev/null || true
 # ============================================================================
 
 log_info "Initializing Squid cache..."
-/usr/local/bin/init-squid.sh
+python3 /usr/local/bin/init-squid.py
 
 # ============================================================================
 # Start Health Check Server
 # ============================================================================
 
 log_info "Starting health check server on port $HEALTH_PORT..."
-/usr/local/bin/healthcheck.py &
+python3 /usr/local/bin/healthcheck.py &
 HEALTHCHECK_PID=$!
 
 # Give health check server time to start

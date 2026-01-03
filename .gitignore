@@ -32,6 +32,16 @@ tests/fixtures/test-certs/*.key
 coverage/
 *.test
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+.pytest_cache/
+.hypothesis/
+
 # Temporary files
 tmp/
 temp/
