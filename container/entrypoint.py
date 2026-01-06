@@ -105,15 +105,8 @@ async def validate_configuration() -> None:
         import shutil
         shutil.copy(default_config, config_file)
 
-    # Validate configuration
-    success, error = await validate_squid_config(config_file)
-    if not success:
-        logging.error(f"Squid configuration validation failed:\n{error}")
-        sys.exit(1)
-
-    logging.info("Configuration validation passed")
-
-    # Check if SSL-bump is enabled
+    # Check if SSL-bump is enabled and merge certificates BEFORE validation
+    # This is critical because squid -k parse tries to load the certificate file
     if detect_ssl_bump(config_file):
         logging.info("SSL-bump detected in configuration")
 
@@ -123,11 +116,19 @@ async def validate_configuration() -> None:
             logging.error(f"SSL-bump enabled but {cert_error}")
             sys.exit(1)
 
-        # Merge certificates
+        # Merge certificates BEFORE config validation
         merge_success, merge_error = await merge_ssl_certificates()
         if not merge_success:
             logging.error(f"Failed to merge SSL certificates: {merge_error}")
             sys.exit(1)
+
+    # Validate configuration (after SSL certificates are merged)
+    success, error = await validate_squid_config(config_file)
+    if not success:
+        logging.error(f"Squid configuration validation failed:\n{error}")
+        sys.exit(1)
+
+    logging.info("Configuration validation passed")
 
 
 async def validate_runtime_directories() -> None:
