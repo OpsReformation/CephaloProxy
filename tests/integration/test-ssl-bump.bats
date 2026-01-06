@@ -108,7 +108,8 @@ teardown() {
     sleep 2
 
     # Check Squid's access.log for cache activity (more reliable than docker logs)
-    run docker exec "$CONTAINER_NAME" cat /var/log/squid/access.log
+    # Use Python to read file (no cat in distroless)
+    run docker exec "$CONTAINER_NAME" /usr/bin/python3 -c "import sys; sys.stdout.write(open('/var/log/squid/access.log').read())"
     [ "$status" -eq 0 ]
     # Logs should show cache activity (TCP_MISS then TCP_HIT or similar)
     [[ "$output" =~ "TCP_" ]]
@@ -136,7 +137,8 @@ teardown() {
     sleep 15
 
     # Check that SSL database was created
-    run docker exec "$CONTAINER_NAME" ls -la /var/lib/squid/ssl_db
+    # Use Python to list directory (no ls in distroless)
+    run docker exec "$CONTAINER_NAME" /usr/bin/python3 -c "import os; print('\n'.join(os.listdir('/var/lib/squid/ssl_db')))"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "certs" ]]
 

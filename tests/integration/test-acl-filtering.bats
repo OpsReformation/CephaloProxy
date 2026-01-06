@@ -62,7 +62,8 @@ teardown() {
     sleep 2
 
     # Check Squid's access.log for denial (more reliable than docker logs)
-    run docker exec "$CONTAINER_NAME" cat /var/log/squid/access.log
+    # Use Python to read file (no cat in distroless)
+    run docker exec "$CONTAINER_NAME" /usr/bin/python3 -c "import sys; sys.stdout.write(open('/var/log/squid/access.log').read())"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "DENIED" || "$output" =~ "403" ]]
 

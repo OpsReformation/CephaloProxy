@@ -126,7 +126,8 @@ teardown() {
 
     # Check Squid's access.log inside the container for the request
     # This is more reliable than docker logs which only captures stdout/stderr
-    run docker exec "$CONTAINER_NAME" cat /var/log/squid/access.log
+    # Use Python to read file (no cat in distroless)
+    run docker exec "$CONTAINER_NAME" /usr/bin/python3 -c "import sys; sys.stdout.write(open('/var/log/squid/access.log').read())"
     [ "$status" -eq 0 ]
     # Squid access.log should contain either the domain or TCP_ status codes
     [[ "$output" =~ example.com ]] || [[ "$output" =~ TCP_ ]]
@@ -136,5 +137,5 @@ teardown() {
 }
 
 # =============================================================================
-# NOTE: Health check tests (T015, T016) are in test_health_checks.sh
+# NOTE: Health check tests (T015, T016) are in test-health-checks.bats
 # =============================================================================

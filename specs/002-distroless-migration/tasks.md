@@ -187,7 +187,7 @@ Tasks are organized by user story priority (P1 → P2 → P3) with dependencies 
 ### Integration Testing
 
 - [X] [T013] [P] [US2] Run existing integration tests against distroless image
-  - **Command**: `bats tests/integration/test_basic_proxy.sh tests/integration/test_health_checks.sh tests/integration/test_acl_filtering.sh`
+  - **Command**: `bats tests/integration/test-basic-proxy.bats tests/integration/test-health-checks.bats tests/integration/test-acl-filtering.bats`
   - **Dependencies**: T010 (requires distroless image built)
   - **Environment**: Export `IMAGE_NAME=cephaloproxy:distroless`
   - **Acceptance**: SC-004 (100% pass rate, no test modifications allowed per spec)

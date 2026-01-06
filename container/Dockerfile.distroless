@@ -96,11 +96,13 @@ RUN mkdir -p \
 # =============================================================================
 # Stage 3: Distroless Runtime - Minimal runtime with Python 3.11 + Squid
 # =============================================================================
-# Using :debug variant for bash entrypoint compatibility
-# Still achieves security goals: 80%+ package reduction, 60%+ CVE reduction vs Gentoo
-# Future optimization: Migrate entrypoint.sh to Python for non-debug variant
-# NOTE: Using debian12 as debian13 distroless images not yet available (Aug 2025)
-FROM gcr.io/distroless/python3-debian12:debug
+# Using non-debug variant for maximum security (no shell binaries)
+# Python entrypoint enables shell-free operation
+# NOTE: Using debian12 as debian13 distroless images not yet available (Jan 2026)
+# Migration path: When gcr.io/distroless/python3-debian13 becomes stable (Q2-Q3 2026),
+# update this base image reference. See research.md for details.
+# Pinned to specific digest for immutability and reproducible builds
+FROM gcr.io/distroless/python3-debian12@sha256:8ce6bba3f793ba7d834467dfe18983c42f9b223604970273e9e3a22b1891fc27
 
 # Architecture detection for multi-platform builds
 # TARGETARCH is automatically set by Docker buildx (amd64, arm64, etc.)
@@ -158,7 +160,16 @@ COPY --from=squid-builder --chmod=644 /usr/lib/*-linux-gnu*/libgpg-error.so.0* /
 # Copy pre-created directories with correct permissions from directory-builder
 COPY --from=directory-builder /runtime /
 
-# Copy container scripts (including new Python init script - T004, T005)
+# Copy Python utility modules to importable location
+# distroless Python images have /usr/lib/python3.11 in sys.path
+COPY --chmod=644 container/proc_utils.py /usr/lib/python3.11/proc_utils.py
+COPY --chmod=644 container/logging_config.py /usr/lib/python3.11/logging_config.py
+COPY --chmod=644 container/config_validator.py /usr/lib/python3.11/config_validator.py
+COPY --chmod=644 container/directory_validator.py /usr/lib/python3.11/directory_validator.py
+COPY --chmod=644 container/ssl_cert_handler.py /usr/lib/python3.11/ssl_cert_handler.py
+
+# Copy container scripts (Python entrypoint and utilities)
+COPY --chmod=755 container/entrypoint.py /usr/local/bin/entrypoint.py
 COPY --chmod=755 container/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chmod=755 container/init-squid.py /usr/local/bin/init-squid.py
 COPY --chmod=755 container/healthcheck.py /usr/local/bin/healthcheck.py
@@ -184,7 +195,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/usr/bin/python3", "/usr/local/bin/healthcheck.py", "--check"]
 
 # Set entrypoint (FR-004: Graceful shutdown support)
-# Distroless :debug includes busybox sh at /busybox/sh
-# Note: entrypoint.sh uses bash features - may need adjustment for busybox ash
-ENTRYPOINT ["/busybox/sh", "/usr/local/bin/entrypoint.sh"]
+# Using Python entrypoint directly (no shell required)
+# Exec form ensures Python process receives signals as PID 1
+ENTRYPOINT ["/usr/bin/python3", "/usr/local/bin/entrypoint.py"]
 CMD []

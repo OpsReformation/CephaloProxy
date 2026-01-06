@@ -5,14 +5,49 @@ Provides /health (liveness) and /ready (readiness) endpoints for orchestrators
 """
 
 import os
-import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from pathlib import Path
 import sys
 
 # Configuration
 HEALTH_PORT = int(os.getenv('HEALTH_PORT', '8080'))
 CACHE_DIR = os.getenv('CACHE_DIR', '/var/spool/squid')
 CONFIG_FILE = '/etc/squid/squid.conf'
+PID_FILE = Path('/var/run/squid/squid.pid')
+
+
+def is_squid_running() -> bool:
+    """
+    Check if Squid is running by checking PID file and /proc filesystem.
+
+    Returns:
+        True if Squid process is running, False otherwise
+    """
+    try:
+        # Check if PID file exists
+        if not PID_FILE.exists():
+            return False
+
+        # Read PID from file
+        pid = int(PID_FILE.read_text().strip())
+
+        # Check if process exists in /proc
+        proc_dir = Path(f'/proc/{pid}')
+        if not proc_dir.exists():
+            return False
+
+        # Verify it's actually squid by checking cmdline
+        cmdline_file = proc_dir / 'cmdline'
+        if cmdline_file.exists():
+            cmdline = cmdline_file.read_text()
+            # cmdline has null-separated arguments
+            if 'squid' in cmdline:
+                return True
+
+        return False
+
+    except (ValueError, FileNotFoundError, PermissionError):
+        return False
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -43,14 +78,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         Returns 200 OK if Squid is alive, 503 Service Unavailable otherwise
         """
         try:
-            # Check if Squid process is running
-            result = subprocess.run(
-                ['pgrep', '-x', 'squid'],
-                capture_output=True,
-                timeout=2
-            )
-
-            if result.returncode == 0:
+            # Check if Squid process is running via /proc filesystem
+            if is_squid_running():
                 # Squid is running
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/plain')
@@ -62,12 +91,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b'Service Unavailable: Squid not running\n')
-
-        except subprocess.TimeoutExpired:
-            self.send_response(503)
-            self.send_header('Content-Type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b'Service Unavailable: Health check timeout\n')
 
         except Exception as e:
             self.send_response(500)
@@ -87,13 +110,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         errors = []
 
         try:
-            # Check 1: Squid process running
-            result = subprocess.run(
-                ['pgrep', '-x', 'squid'],
-                capture_output=True,
-                timeout=2
-            )
-            if result.returncode != 0:
+            # Check 1: Squid process running via /proc filesystem
+            if not is_squid_running():
                 errors.append('Squid process not running')
 
             # Check 2: Cache directory writable
@@ -132,12 +150,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.wfile.write(b'Service Unavailable:\n')
                 for error in errors:
                     self.wfile.write(f'  - {error}\n'.encode())
-
-        except subprocess.TimeoutExpired:
-            self.send_response(503)
-            self.send_header('Content-Type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b'Service Unavailable: Readiness check timeout\n')
 
         except Exception as e:
             self.send_response(500)

@@ -52,7 +52,7 @@ Key features:
 - TCP_DENIED audit logging
 - Works without caching requirement
 
-**Test File**: [tests/integration/test_acl_filtering.sh](../../tests/integration/test_acl_filtering.sh)
+**Test File**: [tests/integration/test-acl-filtering.bats](../../tests/integration/test-acl-filtering.bats)
 
 ### Phase 4: SSL-Bump Configuration ✅ COMPLETE
 **Tasks**: T040-T048 (9/9 complete)
@@ -74,7 +74,7 @@ Key features:
 
 **Critical Fix**: Migrated from legacy `ssl_crtd` to Squid 6.x `security_file_certgen` binary
 
-**Test File**: [tests/integration/test_ssl_bump.sh](../../tests/integration/test_ssl_bump.sh)
+**Test File**: [tests/integration/test-ssl-bump.bats](../../tests/integration/test-ssl-bump.bats)
 
 ### Phase 6: User Story 4 - Advanced Custom Configuration ✅ COMPLETE
 **Tasks**: T060-T074 (15/15 complete)
@@ -86,7 +86,7 @@ Key features:
 - Clear error messages for invalid syntax
 - Advanced example configurations
 
-**Test File**: [tests/integration/test_custom_config.sh](../../tests/integration/test_custom_config.sh)
+**Test File**: [tests/integration/test-custom-config.bats](../../tests/integration/test-custom-config.bats)
 
 ### Phase 7: Constitutional Compliance Validation ✅ COMPLETE
 **Tasks**: T075-T082 (8/8 core tasks complete)

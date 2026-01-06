@@ -1,0 +1,5 @@
+# Development dependencies for CephaloProxy Python testing
+# Used for local unit testing of Python entrypoint
+
+pytest>=7.4.0
+pytest-cov>=4.1.0
