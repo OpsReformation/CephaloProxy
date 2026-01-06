@@ -91,7 +91,9 @@ most binary distributions).
 | `/etc/squid/ssl_cert/` | TLS secret (tls.crt, tls.key) | Required for SSL-bump |
 | `/var/spool/squid` | Persistent cache | Required if `cache_dir` configured* |
 
-\* If your `squid.conf` contains a `cache_dir` directive, the cache volume **must** be mounted and writable. Omit `cache_dir` for pure proxy mode (no caching).
+\* If your `squid.conf` contains a `cache_dir` directive, the cache volume
+**must** be mounted and writable. Omit `cache_dir` for pure proxy mode (no
+caching).
 
 ## Performance
 
@@ -111,8 +113,8 @@ most binary distributions).
 
 ## License
 
-[Add your license here]
+- [GNU GENERAL PUBLIC LICENSE v3](LICENSE.md)
 
 ## Contributing
 
-[Add contributing guidelines here]
+- To Do
