@@ -8,6 +8,11 @@ single `o` at the start — do not modify either name.
 
 ## Active Technologies
 
+- Python 3.11+ (runtime), Bash (build-time) + Docker BuildKit, Docker Bake (HCL
+  config), Docker Compose (004-docker-bake-build)
+- Stateless container; Squid cache/logs managed via external persistent volumes
+  (004-docker-bake-build)
+
 - **Runtime:** Python 3.11+ (3.12 preferred), Python standard library only
   (`os`, `sys`, `subprocess`, `signal`, `pathlib`, `logging`, `time`, `re`,
   `shutil`, `asyncio`) — NO external packages
@@ -28,6 +33,8 @@ Follow standard Python conventions.
 
 ## Recent Changes
 
+- 004-docker-bake-build: Added Python 3.11+ (runtime), Bash (build-time) +
+  Docker BuildKit, Docker Bake (HCL config), Docker Compose
 - **003-distroless-completion:** Python entrypoint migration complete. Container
   now runs shell-free with asyncio-based initialization and graceful shutdown.
   Debian 12 distroless base image confirmed as optimal (Debian 13 not yet
