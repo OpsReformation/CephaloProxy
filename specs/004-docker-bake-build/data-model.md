@@ -2,15 +2,19 @@
 
 ## Overview
 
-This document describes the data entities and relationships for the Docker Bake configuration system. The focus is on build configuration rather than runtime data.
+This document describes the data entities and relationships for the Docker Bake
+configuration system. The focus is on build configuration rather than runtime
+data.
 
 ## Entities
 
 ### Build Target
 
-**Description**: A Docker Bake target defines a build configuration for the CephaloProxy container.
+**Description**: A Docker Bake target defines a build configuration for the
+CephaloProxy container.
 
 **Fields**:
+
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | name | string | Target name (e.g., "base", "cephaloproxy", "amd64-only") | Yes |
@@ -28,10 +32,12 @@ This document describes the data entities and relationships for the Docker Bake 
 | push | boolean | Push image to registry | No |
 
 **Relationships**:
+
 - `inherits`: References other target names
 - `args`: Key-value pairs passed to Dockerfile
 
 **Validation Rules**:
+
 - `name` must be unique across all targets
 - `dockerfile` must be a valid path relative to `context`
 - `tags` must be unique per target
@@ -39,9 +45,11 @@ This document describes the data entities and relationships for the Docker Bake 
 
 ### Build Variable
 
-**Description**: Bake variables provide configuration values that can be overridden at build time.
+**Description**: Bake variables provide configuration values that can be
+overridden at build time.
 
 **Fields**:
+
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | name | string | Variable name (e.g., "REGISTRY", "VERSION") | Yes |
@@ -49,25 +57,31 @@ This document describes the data entities and relationships for the Docker Bake 
 | default | string | Default value | No |
 
 **Relationships**:
+
 - Used by targets via `args` and `labels`
 
 **Validation Rules**:
+
 - `name` must match variable naming conventions (uppercase, hyphen-separated)
 
 ### Build Group
 
-**Description**: Groups define collections of targets for convenient build commands.
+**Description**: Groups define collections of targets for convenient build
+commands.
 
 **Fields**:
+
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | name | string | Group name (e.g., "default", "dev") | Yes |
 | targets | array[string] | Target names in this group | Yes |
 
 **Relationships**:
+
 - Groups are referenced by target names, not vice versa
 
 **Validation Rules**:
+
 - `name` must be unique across all groups
 - All referenced target names must exist
 
@@ -76,6 +90,7 @@ This document describes the data entities and relationships for the Docker Bake 
 **Description**: The complete Docker Bake configuration file structure.
 
 **Fields**:
+
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | variable | array[object] | Variable definitions | No |
@@ -83,10 +98,12 @@ This document describes the data entities and relationships for the Docker Bake 
 | group | array[object] | Group definitions | No |
 
 **Relationships**:
+
 - All entities are part of the same configuration file
 - Targets reference variables and inherit from other targets
 
 **Validation Rules**:
+
 - Must contain at least one target definition
 - Target names must be unique
 - Group names must be unique
@@ -103,6 +120,7 @@ This document describes the data entities and relationships for the Docker Bake 
 ```
 
 **States**:
+
 - **Not Created**: Target not yet defined in configuration
 - **Defined**: Target defined in docker-bake.hcl
 - **Built**: Build process completed successfully
@@ -117,6 +135,7 @@ This document describes the data entities and relationships for the Docker Bake 
 ```
 
 **States**:
+
 - **Original**: Initial configuration state
 - **Modified**: Changes made to configuration
 - **Validated**: Configuration syntax validated
@@ -125,6 +144,7 @@ This document describes the data entities and relationships for the Docker Bake 
 ## Data Volume / Scale Assumptions
 
 ### Target Count
+
 - Base target: 1
 - Multi-platform target: 1
 - Single platform targets: 2 (amd64-only, arm64-only)
@@ -132,6 +152,7 @@ This document describes the data entities and relationships for the Docker Bake 
 - Total: 5 targets (static, not scaling)
 
 ### Variable Count
+
 - Registry: 1
 - Version: 1
 - Platform detection: 4
@@ -140,6 +161,7 @@ This document describes the data entities and relationships for the Docker Bake 
 - Total: 9 variables (static, not scaling)
 
 ### Cache Size
+
 - Per build: ~500MB (distroless image layers)
 - Build cache: ~2GB (multi-platform with compression)
 - Not expected to grow beyond 5GB
@@ -149,27 +171,42 @@ This document describes the data entities and relationships for the Docker Bake 
 ```hcl
 # docker-bake.hcl
 variable {
-  name = "REGISTRY"
+  name = "BUILD_ENV"
   type = "string"
-  default = "cephaloproxy"
+  default = "production"
 }
 
 target "base" {
   context = "./container"
   dockerfile = "Dockerfile.distroless"
   args = { ... }
-  cache-from = [ ... ]
+  # No cache on base target - cache configured in child targets
 }
 
+# Production target - uses GitHub Actions cache in CI
 target "cephaloproxy" {
   inherits = ["base"]
   platforms = ["linux/amd64", "linux/arm64"]
-  tags = [ ... ]
-  cache-to = [ ... ]
+  tags = ["cephaloproxy:latest", "cephaloproxy:${VERSION}"]
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max,compression=zstd"]
+}
+
+# Development target - uses local cache
+target "dev" {
+  inherits = ["base"]
+  platforms = ["${BUILDPLATFORM:-linux/amd64}"]
+  tags = ["cephaloproxy:dev"]
+  cache-from = ["type=local,src=/tmp/docker-build-cache"]
+  cache-to = ["type=local,dest=/tmp/docker-build-cache-new,mode=max"]
 }
 
 group "default" {
   targets = ["cephaloproxy"]
+}
+
+group "dev" {
+  targets = ["dev"]
 }
 ```
 
@@ -179,7 +216,8 @@ group "default" {
 2. **Uniqueness**: Target and variable names must be unique
 3. **References**: All inherited targets must exist
 4. **Paths**: All file paths must be valid and accessible
-5. **Platforms**: Platform strings must match Docker format (e.g., "linux/amd64")
+5. **Platforms**: Platform strings must match Docker format (e.g.,
+   "linux/amd64")
 6. **Tags**: Tags must be unique per target
 7. **Cache**: Cache sources and destinations must be valid
 
@@ -197,6 +235,7 @@ ARG TARGETPLATFORM
 ```
 
 Bake passes these via:
+
 ```hcl
 target "base" {
   args = {
@@ -212,16 +251,19 @@ target "base" {
 ## Error Scenarios
 
 ### Build Failure
+
 - **Trigger**: Invalid ARG values, missing files, network errors
 - **Response**: Fail fast with clear error message (FR-005)
 - **Recovery**: Fix configuration, retry build
 
 ### Cache Failure
+
 - **Trigger**: Registry unavailable, cache corruption
 - **Response**: Build without cache, use fallback
 - **Recovery**: Clear cache, rebuild from scratch
 
 ### BuildKit Unavailable
+
 - **Trigger**: BuildKit disabled, no buildx builder
 - **Response**: Fail with error message (FR-006)
 - **Recovery**: Enable BuildKit, create buildx builder

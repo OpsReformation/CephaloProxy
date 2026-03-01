@@ -2,7 +2,9 @@
 
 ## Overview
 
-This guide provides quick instructions for building the CephaloProxy container using Docker Bake. Docker Bake allows you to build multi-platform containers (amd64, arm64) with a single command.
+This guide provides quick instructions for building the CephaloProxy container
+using Docker Bake. Docker Bake allows you to build multi-platform containers
+(amd64, arm64) with a single command.
 
 ## Prerequisites
 
@@ -20,6 +22,7 @@ docker buildx bake
 ```
 
 **What this does**:
+
 - Builds for both linux/amd64 and linux/arm64
 - Uses registry cache for faster builds
 - Exports cache for future builds
@@ -37,6 +40,7 @@ docker buildx bake --set *.platform=linux/arm64
 ```
 
 **What this does**:
+
 - Builds for a single architecture
 - Useful for testing before full multi-platform build
 
@@ -49,6 +53,7 @@ docker buildx bake dev
 ```
 
 **What this does**:
+
 - Builds for amd64 only
 - Uses local cache for faster rebuilds
 - Exports cache to `/tmp/docker-build-cache-new`
@@ -65,6 +70,7 @@ By default, Docker Bake uses registry-based caching. This means:
 - No local cache management needed
 
 **Example Registry**: GitHub Container Registry
+
 ```bash
 # Build with custom registry
 docker buildx bake --set REGISTRY=myregistry.io/cephaloproxy
@@ -82,7 +88,8 @@ mkdir -p /tmp/docker-build-cache
 docker buildx bake dev
 ```
 
-**Note**: Local cache is not pushed to registry. Use it only for local development.
+**Note**: Local cache is not pushed to registry. Use it only for local
+development.
 
 ## Base Image Overrides
 
@@ -108,6 +115,7 @@ Docker Bake defines several targets:
 | `dev` | amd64 | Development build with local cache |
 
 **List all targets**:
+
 ```bash
 docker buildx bake --list=targets
 ```
@@ -115,16 +123,19 @@ docker buildx bake --list=targets
 ## Build Groups
 
 **Default group** (multi-platform):
+
 ```bash
 docker buildx bake
 ```
 
 **Single platform group**:
+
 ```bash
 docker buildx bake single-platform
 ```
 
 **Development group**:
+
 ```bash
 docker buildx bake dev
 ```
@@ -178,11 +189,13 @@ docker buildx du
 ### BuildKit Not Available
 
 **Error**:
+
 ```
 Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx builder.
 ```
 
 **Solution**:
+
 ```bash
 # Enable BuildKit
 export DOCKER_BUILDKIT=1
@@ -194,6 +207,7 @@ docker buildx create --name buildkit --use --driver=docker
 ### Base Image Not Found
 
 **Error**:
+
 ```
 Error: failed to solve: gcr.io/distroless/python3-debian12@sha256:invalid
 ```
@@ -203,6 +217,7 @@ Error: failed to solve: gcr.io/distroless/python3-debian12@sha256:invalid
 ### Permission Denied
 
 **Error**:
+
 ```
 Error: permission denied while trying to connect to the Docker daemon socket
 ```
@@ -214,6 +229,7 @@ Error: permission denied while trying to connect to the Docker daemon socket
 **Symptom**: Build takes too long or doesn't use cache
 
 **Solution**:
+
 ```bash
 # Clear build cache
 docker buildx prune

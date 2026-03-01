@@ -2,18 +2,23 @@
 
 ## Overview
 
-This document defines the contracts for Docker Bake build commands and their expected outputs. The "API" consists of build commands that can be executed and their responses.
+This document defines the contracts for Docker Bake build commands and their
+expected outputs. The "API" consists of build commands that can be executed and
+their responses.
 
 ## Commands
 
 ### Multi-Platform Build
 
+
 **Command**:
+
 ```bash
 docker buildx bake
 ```
 
 **Expected Behavior**:
+
 - Builds container for both linux/amd64 and linux/arm64
 - Uses cache from `cephaloproxy:buildcache`
 - Exports cache to `cephaloproxy:buildcache` (max mode, zstd compression)
@@ -21,6 +26,7 @@ docker buildx bake
 - Fails immediately if Docker BuildKit not available
 
 **Expected Output**:
+
 ```
 [+] Building 120.5s (45/45) FINISHED
 [+] Exporting cache to registry
@@ -31,6 +37,7 @@ cephaloproxy:buildcache
 ```
 
 **Error Response**:
+
 ```
 Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx builder.
 ```
@@ -38,17 +45,20 @@ Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx bui
 ### Single Platform Build (amd64)
 
 **Command**:
+
 ```bash
 docker buildx bake --set *.platform=linux/amd64
 ```
 
 **Expected Behavior**:
+
 - Builds container for linux/amd64 only
 - Uses cache from `cephaloproxy:buildcache`
 - Exports cache to `cephaloproxy:buildcache-amd64`
 - Fails fast on any error
 
 **Expected Output**:
+
 ```
 [+] Building 60.2s (35/35) FINISHED
 [+] Exporting cache to registry
@@ -61,17 +71,20 @@ cephaloproxy:buildcache-amd64
 ### Single Platform Build (arm64)
 
 **Command**:
+
 ```bash
 docker buildx bake --set *.platform=linux/arm64
 ```
 
 **Expected Behavior**:
+
 - Builds container for linux/arm64 only
 - Uses cache from `cephaloproxy:buildcache`
 - Exports cache to `cephaloproxy:buildcache-arm64`
 - Fails fast on any error
 
 **Expected Output**:
+
 ```
 [+] Building 65.1s (36/36) FINISHED
 [+] Exporting cache to registry
@@ -84,17 +97,20 @@ cephaloproxy:buildcache-arm64
 ### Development Build
 
 **Command**:
+
 ```bash
 docker buildx bake dev
 ```
 
 **Expected Behavior**:
+
 - Builds container for linux/amd64 only (for development)
 - Uses local and registry cache
 - Exports to local cache for faster subsequent builds
 - Fails fast on any error
 
 **Expected Output**:
+
 ```
 [+] Building 58.3s (34/34) FINISHED
 [+] Exporting cache to local
@@ -105,6 +121,7 @@ cephaloproxy:dev
 ### Override Base Image Version
 
 **Command**:
+
 ```bash
 docker buildx bake \
   --var DISTROLESS_BASE=gcr.io/distroless/python3-debian13 \
@@ -112,11 +129,13 @@ docker buildx bake \
 ```
 
 **Expected Behavior**:
+
 - Builds container with custom base image
 - Passes custom values via variables
 - Fails fast if base image not found
 
 **Expected Output**:
+
 ```
 [+] Building 115.8s (42/42) FINISHED
 [+] Exporting cache to registry
@@ -135,9 +154,11 @@ cephaloproxy:buildcache
 **Description**: Base target with common settings
 
 **Configuration**:
+
 - Context: `./container`
 - Dockerfile: `Dockerfile.distroless`
-- Args: DISTROLESS_BASE, DISTROLESS_BASE_SHA, DEBIAN_VERSION, BUILDPLATFORM, TARGETPLATFORM
+- Args: DISTROLESS_BASE, DISTROLESS_BASE_SHA, DEBIAN_VERSION, BUILDPLATFORM,
+  TARGETPLATFORM
 - Cache from: `cephaloproxy:buildcache`
 
 **Usage**: Inherited by other targets
@@ -149,6 +170,7 @@ cephaloproxy:buildcache
 **Description**: Main target for multi-platform builds
 
 **Configuration**:
+
 - Inherits: `base`
 - Platforms: `linux/amd64`, `linux/arm64`
 - Tags: `cephaloproxy:latest`, `cephaloproxy:${VERSION}`
@@ -163,6 +185,7 @@ cephaloproxy:buildcache
 **Description**: amd64-only build target
 
 **Configuration**:
+
 - Inherits: `base`
 - Platforms: `linux/amd64`
 - Tags: `cephaloproxy:amd64-latest`, `cephaloproxy:amd64-${VERSION}`
@@ -173,6 +196,7 @@ cephaloproxy:buildcache
 **Description**: arm64-only build target
 
 **Configuration**:
+
 - Inherits: `base`
 - Platforms: `linux/arm64`
 - Tags: `cephaloproxy:arm64-latest`, `cephaloproxy:arm64-${VERSION}`
@@ -187,10 +211,12 @@ cephaloproxy:buildcache
 **Description**: Local development build
 
 **Configuration**:
+
 - Inherits: `base`
 - Platforms: `linux/amd64`
 - Tags: `cephaloproxy:dev`
-- Cache from: `cephaloproxy:buildcache`, `type=local,src=/tmp/docker-build-cache`
+- Cache from: `cephaloproxy:buildcache`,
+  `type=local,src=/tmp/docker-build-cache`
 - Cache to: `type=local,dest=/tmp/docker-build-cache-new`
 
 **Usage**: Local development with local cache
@@ -226,6 +252,7 @@ cephaloproxy:buildcache
 ### BuildKit Not Available
 
 **Error Message**:
+
 ```
 Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx builder.
 ```
@@ -237,6 +264,7 @@ Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx bui
 ### Invalid Base Image
 
 **Error Message**:
+
 ```
 Error: Failed to pull base image gcr.io/distroless/python3-debian13@sha256:invalid
 ```
@@ -248,6 +276,7 @@ Error: Failed to pull base image gcr.io/distroless/python3-debian13@sha256:inval
 ### Invalid ARG Value
 
 **Error Message**:
+
 ```
 Error: ARG DISTROLESS_BASE is required but not set
 ```
@@ -259,6 +288,7 @@ Error: ARG DISTROLESS_BASE is required but not set
 ### Missing Dockerfile
 
 **Error Message**:
+
 ```
 Error: No such file or directory: container/Dockerfile.distroless
 ```
@@ -270,6 +300,7 @@ Error: No such file or directory: container/Dockerfile.distroless
 ### Platform Not Supported
 
 **Error Message**:
+
 ```
 Error: Requested platform linux/arm/v7 is not supported by Dockerfile
 ```
@@ -311,6 +342,7 @@ Error: Requested platform linux/arm/v7 is not supported by Dockerfile
 ### GitHub Actions
 
 **Before Build**:
+
 ```yaml
 - name: Check BuildKit availability
   run: |
@@ -322,12 +354,14 @@ Error: Requested platform linux/arm/v7 is not supported by Dockerfile
 ```
 
 **Build Command**:
+
 ```yaml
 - name: Build multi-platform container image
   run: docker buildx bake
 ```
 
 **Expected Artifact**:
+
 - Container image loaded into Docker daemon
 - Build cache pushed to registry
 
@@ -348,6 +382,7 @@ services:
 **Command**: `docker buildx bake dev`
 
 **Expected Behavior**:
+
 - Build completes in ~60 seconds
 - Cache exported to `/tmp/docker-build-cache-new`
 - Image tagged as `cephaloproxy:dev`
@@ -357,6 +392,7 @@ services:
 ### Syntax Validation
 
 **Command**:
+
 ```bash
 docker buildx bake --print
 ```
@@ -366,6 +402,7 @@ docker buildx bake --print
 ### Target Validation
 
 **Command**:
+
 ```bash
 docker buildx bake --list=targets
 ```
@@ -375,6 +412,7 @@ docker buildx bake --list=targets
 ### Cache Validation
 
 **Command**:
+
 ```bash
 docker buildx bake --progress=plain
 ```
@@ -383,4 +421,6 @@ docker buildx bake --progress=plain
 
 ## Versioning
 
-The build API is version-agnostic. The Dockerfile maintains compatibility with any Docker version that supports BuildKit. The bake configuration is backward compatible with existing Dockerfiles.
+The build API is version-agnostic. The Dockerfile maintains compatibility with
+any Docker version that supports BuildKit. The bake configuration is backward
+compatible with existing Dockerfiles.

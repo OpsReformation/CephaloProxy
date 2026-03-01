@@ -1,57 +1,75 @@
 # Implementation Plan: Docker Build System Update
 
-**Branch**: `004-docker-bake-build` | **Date**: 2026-02-27 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/004-docker-bake-build/spec.md`
+**Branch**: `004-docker-bake-build` | **Date**: 2026-02-27 | **Spec**:
+[spec.md](./spec.md) **Input**: Feature specification from
+`/specs/004-docker-bake-build/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. See
+`.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-This feature migrates the CephaloProxy container build system to use Docker Bake for multi-platform support (amd64, arm64). The implementation creates a `docker-bake.hcl` configuration file that defines build targets for both architectures using Docker BuildKit's native multi-platform caching. GitHub Actions workflow and manual build instructions will be updated to use Docker Bake commands instead of direct `docker build` calls.
+This feature migrates the CephaloProxy container build system to use Docker Bake
+for multi-platform support (amd64, arm64). The implementation creates a
+`docker-bake.hcl` configuration file that defines build targets for both
+architectures using Docker BuildKit's cache backends with a hybrid cache model
+(GitHub Actions cache for CI/CD, local filesystem cache for development). GitHub
+Actions workflow and manual build instructions will be updated to use Docker
+Bake commands instead of direct `docker build` calls.
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+ (runtime), Bash (build-time)
-**Primary Dependencies**: Docker BuildKit, Docker Bake (HCL config), Docker Compose
-**Storage**: Stateless container; Squid cache/logs managed via external persistent volumes
-**Testing**: pytest (for Python scripts), bats (for shell scripts)
-**Target Platform**: Linux containers (amd64, arm64)
-**Project Type**: Single container project
-**Performance Goals**: Not prioritized for this feature (explicitly stated: "do not worry about improving build times")
-**Constraints**: Must use Docker BuildKit (no fallback), must support multi-platform builds (amd64, arm64), must maintain distroless Debian 12 base image
-**Scale/Scope**: Single container image with multi-platform support, CI/CD integration, build documentation
+**Language/Version**: Python 3.11+ (runtime), Bash (build-time) **Primary
+Dependencies**: Docker BuildKit, Docker Bake (HCL config), Docker Compose
+**Storage**: Stateless container; Squid cache/logs managed via external
+persistent volumes **Testing**: pytest (for Python scripts), bats (for shell
+scripts) **Target Platform**: Linux containers (amd64, arm64) **Project Type**:
+Single container project **Performance Goals**: Not prioritized for this feature
+(explicitly stated: "do not worry about improving build times") **Constraints**:
+Must use Docker BuildKit (no fallback), must support multi-platform builds
+(amd64, arm64), must maintain distroless Debian 12 base image. Breaking change
+acceptable - no backward compatibility for docker build commands. 30-day
+transition period with migration strategy. **Scale/Scope**: Single container
+image with multi-platform support, CI/CD integration, build documentation, 3-5
+configuration files updated
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 ### I. Container-First Architecture ✅ PASS
+
 - Multi-platform container builds supported via Docker Bake
 - Base image (debian12 distroless) maintained
 - Configuration injectable via Dockerfile ARGs and environment variables
 - Image reproducibility maintained through BuildKit caching
 
 ### II. Test-First Development ✅ PASS
+
 - Tests for Docker bake configuration validation needed
 - Integration tests to verify multi-platform builds
 - TDD workflow applied for any Python scripts added
 
 ### III. Squid Proxy Integration ✅ PASS
+
 - Existing Dockerfiles maintained (Dockerfile.distroless is production-ready)
 - No changes to Squid configuration or behavior
 - Build system enhancement only
 
 ### IV. Security by Default ✅ PASS
+
 - BuildKit security features utilized
 - No security regressions introduced
 - Distroless security posture maintained
 
 ### V. Observable by Default ⚠️ PARTIAL
+
 - Build logs and errors will be observable
 - No runtime observability changes
 - Acceptable for build system feature
 
-**Status**: PASS with minor observation on observability (acceptable for build-only feature)
+**Status**: PASS with minor observation on observability (acceptable for
+build-only feature)
 
 ## Project Structure
 
@@ -86,7 +104,10 @@ deploy/
 README.md  # UPDATED: Add Docker Bake build instructions
 ```
 
-**Structure Decision**: Single container project with container-focused directories. The `container/` directory contains all Dockerfiles and scripts. The build configuration will be added as `docker-bake.hcl` in the repository root for easy access and CI/CD integration.
+**Structure Decision**: Single container project with container-focused
+directories. The `container/` directory contains all Dockerfiles and scripts.
+The build configuration will be added as `docker-bake.hcl` in the repository
+root for easy access and CI/CD integration.
 
 ## Complexity Tracking
 
@@ -96,7 +117,10 @@ README.md  # UPDATED: Add Docker Bake build instructions
 |-----------|------------|-------------------------------------|
 | N/A | All requirements met constitutionally | N/A |
 
-**No constitutional violations.** All requirements are aligned with the CephaloProxy Constitution. The implementation maintains container-first architecture, test-first development, Squid proxy integration, security by default, and observable by default principles.
+**No constitutional violations.** All requirements are aligned with the
+CephaloProxy Constitution. The implementation maintains container-first
+architecture, test-first development, Squid proxy integration, security by
+default, and observable by default principles.
 
 ## Phase 0: Research Output
 
@@ -105,9 +129,12 @@ README.md  # UPDATED: Add Docker Bake build instructions
 **File**: [research.md](./research.md)
 
 **Key Decisions**:
+
 1. Single target with platform overrides using base target inheritance
-2. Registry-based cache for CI/CD environments
-3. Environment variables for base image configuration (workaround for external JSON loading)
+2. Hybrid cache model for CI/CD and local development (GitHub Actions cache +
+   local filesystem cache)
+3. Environment variables for base image configuration (workaround for external
+   JSON loading)
 4. Fail fast on BuildKit unavailability
 5. Minimal Dockerfile adaptations (add ARG declarations for platform detection)
 
@@ -116,14 +143,19 @@ README.md  # UPDATED: Add Docker Bake build instructions
 **Status**: ✅ COMPLETE
 
 **Files**:
-- [data-model.md](./data-model.md) - Build configuration entities and relationships
-- [contracts/build-api.md](./contracts/build-api.md) - Build command contracts and expected outputs
+
+- [data-model.md](./data-model.md) - Build configuration entities and
+  relationships
+- [contracts/build-api.md](./contracts/build-api.md) - Build command contracts
+  and expected outputs
 - [quickstart.md](./quickstart.md) - User guide for Docker Bake usage
 
 **Agent Context**: ✅ UPDATED
 
 **Changes to CLAUDE.md**:
-- Added Docker BuildKit, Docker Bake (HCL config), Docker Compose to Active Technologies
+
+- Added Docker BuildKit, Docker Bake (HCL config), Docker Compose to Active
+  Technologies
 - Updated recent changes section
 
 **Re-evaluation**: Constitution Check re-validated. No violations identified.
