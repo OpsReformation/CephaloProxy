@@ -19,9 +19,9 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Review existing Dockerfile.distroless and verify it supports BuildKit ARGs
-- [ ] T002 [P] Verify Docker BuildKit is available on development machine
-- [ ] T003 [P] Review GitHub Actions workflow and identify build command locations
+- [X] T001 Review existing Dockerfile.distroless and verify it supports BuildKit ARGs
+- [X] T002 [P] Verify Docker BuildKit is available on development machine
+- [X] T003 [P] Review GitHub Actions workflow and identify build command locations
 
 ---
 
@@ -31,12 +31,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create docker-bake.hcl configuration file with base target
-- [ ] T005 [P] Add ARG declarations to Dockerfile.distroless for platform detection (DISTROLESS_BASE, DISTROLESS_BASE_SHA, DEBIAN_VERSION, BUILDPLATFORM, TARGETPLATFORM)
-- [ ] T005a [US1] Verify Dockerfile.distroless supports building for different base images via ARG overrides
-- [ ] T006 Update GitHub Actions workflow to validate BuildKit availability before build
+- [X] T004 Create docker-bake.hcl configuration file with base target
+- [X] T005 [P] Add ARG declarations to Dockerfile.distroless for platform detection (DISTROLESS_BASE, DISTROLESS_BASE_SHA, DEBIAN_VERSION, BUILDPLATFORM, TARGETPLATFORM)
+- [X] T005a [US1] Verify Dockerfile.distroless supports building for different base images via ARG overrides
+- [X] T006 Update GitHub Actions workflow to validate BuildKit availability before build
 - [ ] T007 [P] Update README.md with Docker Bake build commands from quickstart.md
-- [ ] T008 [P] Verify docker-compose.production.yml can reference Docker Bake targets
+- [X] T008 [P] Verify docker-compose.production.yml can reference Docker Bake targets
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -50,13 +50,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Configure cephaloproxy target in docker-bake.hcl to inherit from base and build for both platforms
-- [ ] T010 [US1] Add cache-from directive to cephaloproxy target for GitHub Actions cache
-- [ ] T011 [US1] Add cache-to directive to cephaloproxy target with max mode and zstd compression
-- [ ] T012 [US1] Configure tags for cephaloproxy target (cephaloproxy:latest, cephaloproxy:${VERSION})
-- [ ] T013 [US1] Update README.md to document multi-platform build command `docker buildx bake`
-- [ ] T014 [US1] Verify single-platform build command `docker buildx bake --set *.platform=linux/amd64` works
-- [ ] T015 [US1] Verify single-platform build command `docker buildx bake --set *.platform=linux/arm64` works
+- [X] T009 [US1] Configure cephaloproxy target in docker-bake.hcl to inherit from base and build for both platforms
+- [X] T010 [US1] Add cache-from directive to cephaloproxy target for GitHub Actions cache
+- [X] T011 [US1] Add cache-to directive to cephaloproxy target with max mode and zstd compression
+- [X] T012 [US1] Configure tags for cephaloproxy target (cephaloproxy:latest, cephaloproxy:${VERSION})
+- [X] T013 [US1] Update README.md to document multi-platform build command `docker buildx bake`
+- [ ] T014 [US1] Verify single-platform build command `docker buildx bake amd64-only` works
+- [ ] T015 [US1] Verify single-platform build command `docker buildx bake arm64-only` works
 
 **Checkpoint**: At this point, User Story 1 should be fully functional - multi-platform builds work with caching
 
@@ -70,12 +70,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Configure dev target in docker-bake.hcl for local development with local cache
-- [ ] T017 [US2] Add local cache source (type=local,src=/tmp/docker-build-cache) to dev target
-- [ ] T018 [US2] Add local cache destination (type=local,dest=/tmp/docker-build-cache-new) to dev target
-- [ ] T019 [US2] Update README.md to document development build command `docker buildx bake dev`
-- [ ] T020 [US2] Add build-time validation script to check BuildKit availability (check for BUILDKIT_DISABLE and buildx version)
-- [ ] T021 [US2] Update GitHub Actions workflow to use `docker buildx bake` command instead of `docker build`
+- [X] T016 [US2] Configure dev target in docker-bake.hcl for local development with local cache
+- [X] T017 [US2] Add local cache source (type=local,src=/tmp/docker-build-cache) to dev target
+- [X] T018 [US2] Add local cache destination (type=local,dest=/tmp/docker-build-cache-new) to dev target
+- [X] T019 [US2] Update README.md to document development build command `docker buildx bake dev`
+- [X] T020 [US2] Add build-time validation script to check BuildKit availability (check for BUILDKIT_DISABLE and buildx version)
+- [X] T021 [US2] Update GitHub Actions workflow to use `docker buildx bake` command instead of `docker build`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently - multi-platform builds with caching and development builds
 
@@ -85,20 +85,20 @@
 
 **Goal**: Build Docker images for different platforms with a single command
 
-**Independent Test**: Run `docker buildx bake single-platform` and verify both amd64-only and arm64-only targets are built
+**Independent Test**: Run `docker buildx bake amd64-only` and `docker buildx bake arm64-only` separately and verify each builds the correct platform
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Configure amd64-only target in docker-bake.hcl to inherit from base
-- [ ] T023 [US3] Configure arm64-only target in docker-bake.hcl to inherit from base
-- [ ] T024 [US3] Add tags for amd64-only target (cephaloproxy:amd64-latest, cephaloproxy:amd64-${VERSION})
-- [ ] T025 [US3] Add tags for arm64-only target (cephaloproxy:arm64-latest, cephaloproxy:arm64-${VERSION})
-- [ ] T026 [US3] Add cache-from directive to amd64-only target for GitHub Actions cache
-- [ ] T027 [US3] Add cache-from directive to arm64-only target for GitHub Actions cache
-- [ ] T028 [US3] Add cache-to directive to amd64-only target with GitHub Actions cache
-- [ ] T029 [US3] Add cache-to directive to arm64-only target with GitHub Actions cache
-- [ ] T043 [US3] Create single-platform group in docker-bake.hcl with amd64-only and arm64-only targets
-- [ ] T044 [US3] Update README.md to document single-platform build command `docker buildx bake single-platform`
+- [X] T022 [US3] Configure amd64-only target in docker-bake.hcl to inherit from base
+- [X] T023 [US3] Configure arm64-only target in docker-bake.hcl to inherit from base
+- [X] T024 [US3] Add tags for amd64-only target (cephaloproxy:amd64-latest, cephaloproxy:amd64-${VERSION})
+- [X] T025 [US3] Add tags for arm64-only target (cephaloproxy:arm64-latest, cephaloproxy:arm64-${VERSION})
+- [X] T026 [US3] Add cache-from directive to amd64-only target for GitHub Actions cache
+- [X] T027 [US3] Add cache-from directive to arm64-only target for GitHub Actions cache
+- [X] T028 [US3] Add cache-to directive to amd64-only target with GitHub Actions cache
+- [X] T029 [US3] Add cache-to directive to arm64-only target with GitHub Actions cache
+- [X] T043 [US3] Create single-platform group in docker-bake.hcl with amd64-only and arm64-only targets
+- [X] T044 [US3] Update README.md to document single-platform build commands `docker buildx bake amd64-only` and `docker buildx bake arm64-only`
 
 **Checkpoint**: All user stories should now be independently functional - complete Docker Bake system
 
@@ -108,22 +108,22 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T043 [P] Add build-time validation script to verify BuildKit availability with clear error message
-- [ ] T044 [P] Update CLAUDE.md with new Active Technologies (Docker BuildKit, Docker Bake, Docker Compose)
-- [ ] T032 [P] Document cache backend requirements (GitHub Actions cache and local cache) in README.md
-- [ ] T043 [P] **TEST**: Validate HCL syntax of docker-bake.hcl using `docker buildx bake --print`
+- [X] T030 [P] Add build-time validation script to verify BuildKit availability with clear error message
+- [X] T031 [P] Update CLAUDE.md with new Active Technologies (Docker BuildKit, Docker Bake, Docker Compose)
+- [X] T032 [P] Document cache backend requirements (GitHub Actions cache and local cache) in README.md
+- [X] T043 [P] **TEST**: Validate HCL syntax of docker-bake.hcl using `docker buildx bake --print`
 - [ ] T044 [P] **TEST**: Verify cache functionality - run build, rebuild to confirm cache hit, document cache hit rate
 - [ ] T045 [P] **TEST**: Verify multi-platform build creates both linux/amd64 and linux/arm64 images
 - [ ] T046 [P] **TEST**: Verify BuildKit configuration is properly enabled and validated
-- [ ] T033 [P] Verify all Dockerfile ARGs are properly referenced in docker-bake.hcl
-- [ ] T034 [P] Validate docker-bake.hcl syntax using `docker buildx bake --print`
+- [X] T033 [P] Verify all Dockerfile ARGs are properly referenced in docker-bake.hcl
+- [X] T034 [P] Validate docker-bake.hcl syntax using `docker buildx bake --print`
 - [ ] T035 [P] Run quickstart.md verification steps to ensure all commands work as documented
 - [ ] T036 [P] Test override base image version command `docker buildx bake --var DISTROLESS_BASE=... --var DEBIAN_VERSION=...`
-- [ ] T037 [P] Test dry run command `docker buildx bake --print` to verify configuration
+- [X] T037 [P] Test dry run command `docker buildx bake --print` to verify configuration
 - [ ] T038 [P] Test progress output command `docker buildx bake --progress=plain` for detailed logs
-- [ ] T039 [P] Verify docker-compose.production.yml can reference build targets correctly
+- [X] T039 [P] Verify docker-compose.production.yml can reference build targets correctly
 - [ ] T040 [P] Add deprecation warnings to docker-compose.production.yml build commands
-- [ ] T041 [P] Verify no direct `docker build` commands remain in CI/CD workflows
+- [X] T041 [P] Verify no direct `docker build` commands remain in CI/CD workflows
 - [ ] T042 [P] Verify container labels match expected format from existing builds
 
 ---
@@ -149,7 +149,7 @@
 
 - Configure targets in docker-bake.hcl before testing
 - Update documentation after implementation
-- Verify single-platform builds before multi-platform
+- Verify single-platform target builds work before multi-platform
 - Test cache functionality after basic build works
 
 ### Parallel Opportunities
@@ -207,7 +207,7 @@ Task: "Add tags for arm64-only target"
 
 # Documentation updates in parallel:
 Task: "Create single-platform group in docker-bake.hcl"
-Task: "Update README.md to document single-platform build command"
+Task: "Update README.md to document single-platform build commands"
 ```
 
 ---

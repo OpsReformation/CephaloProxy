@@ -33,10 +33,10 @@ docker buildx bake
 
 ```bash
 # Build for amd64 only
-docker buildx bake --set *.platform=linux/amd64
+docker buildx bake amd64-only
 
 # Build for arm64 only
-docker buildx bake --set *.platform=linux/arm64
+docker buildx bake arm64-only
 ```
 
 **What this does**:
@@ -126,12 +126,6 @@ docker buildx bake --list=targets
 
 ```bash
 docker buildx bake
-```
-
-**Single platform group**:
-
-```bash
-docker buildx bake single-platform
 ```
 
 **Development group**:

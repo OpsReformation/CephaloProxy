@@ -16,7 +16,7 @@ single `o` at the start — do not modify either name.
 - **Runtime:** Python 3.11+ (3.12 preferred), Python standard library only
   (`os`, `sys`, `subprocess`, `signal`, `pathlib`, `logging`, `time`, `re`,
   `shutil`, `asyncio`) — NO external packages
-- **Build-time:** Bash (Debian 13 slim builder stage only)
+- **Build-time:** Bash (Debian 12 slim builder stage only) + Docker BuildKit
 - **Storage:** Stateless container; Squid cache/logs managed via external
   persistent volumes
 
@@ -33,6 +33,10 @@ Follow standard Python conventions.
 
 ## Recent Changes
 
+- **004-docker-bake-build**: Added Docker BuildKit, Docker Bake (HCL config),
+  improved caching with GitHub Actions cache and local filesystem cache,
+  multi-platform build support (amd64, arm64), single-platform targets for
+  testing, build validation scripts.
 - 004-docker-bake-build: Added Python 3.11+ (runtime), Bash (build-time) +
   Docker BuildKit, Docker Bake (HCL config), Docker Compose
 - **003-distroless-completion:** Python entrypoint migration complete. Container

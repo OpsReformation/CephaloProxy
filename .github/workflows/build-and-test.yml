@@ -67,6 +67,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Check BuildKit availability
+        run: |
+          if [ -n "$BUILDKIT_DISABLE" ]; then
+            echo "Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx builder."
+            exit 1
+          fi
+          if ! docker buildx version > /dev/null 2>&1; then
+            echo "Error: Docker buildx is not available."
+            exit 1
+          fi
+          echo "BuildKit is available and ready for use"
+
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
@@ -75,18 +87,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      - name: Build distroless container image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: container/Dockerfile.distroless
-          push: false
-          load: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:test
-            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      - name: Build distroless container image using Docker Bake
+        run: docker buildx bake --set *.platform=linux/amd64,linux/arm64
 
       - name: Save container image
         run: |

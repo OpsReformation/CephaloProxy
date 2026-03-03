@@ -20,6 +20,80 @@ filtering via ACLs, and flexible configuration.
 See the [deployment guide](docs/deployment.md) for detailed deployment
 instructions.
 
+## Building with Docker Bake
+
+The CephaloProxy container supports Docker Bake for multi-platform builds and
+optimized caching. Docker Bake is enabled by default in modern Docker versions.
+
+### Prerequisites
+
+- Docker Engine 20.10+ with BuildKit support
+- Docker BuildKit enabled (default in modern Docker versions)
+
+### Build Commands
+
+#### Build for All Platforms (Recommended for CI/CD)
+
+```bash
+docker buildx bake
+```
+
+Builds for both linux/amd64 and linux/arm64 with GitHub Actions cache
+integration.
+
+**Cache Backend**: GitHub Actions cache (gha backend)
+
+- Native CI/CD integration
+- Persists across workflow runs
+- No registry access required
+- Max mode with zstd compression for optimal cache size
+
+#### Build for Single Platform (Testing)
+
+```bash
+# Build for amd64 only
+docker buildx bake amd64-only
+
+# Build for arm64 only
+docker buildx bake arm64-only
+```
+
+#### Local Development Build
+
+```bash
+docker buildx bake dev
+```
+
+Builds for amd64 only with local cache for faster rebuilds.
+
+**Cache Backend**: Local filesystem cache (local backend)
+
+- Full control over cache location
+- Faster than registry-based cache
+- Exported to `/tmp/docker-build-cache-new` for reuse
+- Not pushed to registry - use only for local development
+
+#### Override Base Image Version
+
+```bash
+docker buildx bake \
+  --var DISTROLESS_BASE=gcr.io/distroless/python3-debian13 \
+  --var DEBIAN_VERSION=13
+```
+
+### Build Targets
+
+| Target | Platforms | Description |
+|--------|-----------|-------------|
+| `cephaloproxy` | amd64, arm64 | Multi-platform main target |
+| `amd64-only` | amd64 | Single platform for testing |
+| `arm64-only` | arm64 | Single platform for testing |
+| `dev` | amd64 | Development build with local cache |
+
+See
+[specs/004-docker-bake-build/quickstart.md](specs/004-docker-bake-build/quickstart.md)
+for detailed build instructions and troubleshooting.
+
 ### Basic Usage (Docker)
 
 ```bash
@@ -91,9 +165,9 @@ most binary distributions).
 | `/etc/squid/ssl_cert/` | TLS secret (tls.crt, tls.key) | Required for SSL-bump |
 | `/var/spool/squid` | Persistent cache | Required if `cache_dir` configured* |
 
-\* If your `squid.conf` contains a `cache_dir` directive, the cache volume
-**must** be mounted and writable. Omit `cache_dir` for pure proxy mode (no
-caching).
+- If your `squid.conf` contains a `cache_dir` directive, the cache volume
+  **must** be mounted and writable. Omit `cache_dir` for pure proxy mode (no
+  caching).
 
 ## Performance
 

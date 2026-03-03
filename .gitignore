@@ -45,3 +45,4 @@ venv/
 # Temporary files
 tmp/
 temp/
+docker-build-cache/

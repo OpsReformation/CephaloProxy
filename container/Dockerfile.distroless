@@ -3,6 +3,13 @@
 # Security: 80%+ package reduction, 60%+ CVE reduction, no shell/package manager in runtime
 # NOTE: Using Debian 12 as distroless images for Debian 13 not yet available
 
+# BuildKit ARGs for platform detection and configuration
+ARG DISTROLESS_BASE="gcr.io/distroless/python3-debian12"
+ARG DISTROLESS_BASE_SHA="sha256:8ce6bba3f793ba7d834467dfe18983c42f9b223604970273e9e3a22b1891fc27"
+ARG DEBIAN_VERSION="12"
+ARG BUILDPLATFORM="linux/amd64"
+ARG TARGETPLATFORM="linux/amd64"
+
 # =============================================================================
 # Stage 1: Squid Builder - Compile Squid 6.x with SSL-bump support on Debian 12
 # =============================================================================
@@ -102,11 +109,10 @@ RUN mkdir -p \
 # Migration path: When gcr.io/distroless/python3-debian13 becomes stable (Q2-Q3 2026),
 # update this base image reference. See research.md for details.
 # Pinned to specific digest for immutability and reproducible builds
-FROM gcr.io/distroless/python3-debian12@sha256:8ce6bba3f793ba7d834467dfe18983c42f9b223604970273e9e3a22b1891fc27
+FROM ${DISTROLESS_BASE}@${DISTROLESS_BASE_SHA}
 
 # Architecture detection for multi-platform builds
 # TARGETARCH is automatically set by Docker buildx (amd64, arm64, etc.)
-ARG TARGETARCH
 
 # Copy Squid binaries from builder
 # Note: Debian uses /usr/lib/squid for helpers (not /usr/libexec/squid)
