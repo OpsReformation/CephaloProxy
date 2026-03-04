@@ -27,9 +27,8 @@ on:
         default: false
 
 env:
-  IMAGE_NAME: cephaloproxy
-  IMAGE_TAG: ${{ github.sha }}
   REGISTRY: ghcr.io
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   lint-and-validate:
@@ -92,7 +91,7 @@ jobs:
 
       - name: Save container image
         run: |
-          docker save ${{ env.IMAGE_NAME }}:test -o /tmp/cephaloproxy-test.tar
+          docker save ${{ env.IMAGE_NAME }}:latest -o /tmp/cephaloproxy-test.tar
 
       - name: Upload container image artifact
         uses: actions/upload-artifact@v4
@@ -139,7 +138,7 @@ jobs:
 
       - name: Test container starts
         run: |
-          docker run -d --name test-squid -p 3128:3128 -p 8080:8080 ${{ env.IMAGE_NAME }}:test
+          docker run -d --name test-squid -p 3128:3128 -p 8080:8080 ${{ env.IMAGE_NAME }}:latest
           sleep 10
           docker ps | grep test-squid
 
@@ -186,7 +185,7 @@ jobs:
 
       - name: Run integration tests - ${{ matrix.test }}
         run: |
-          export IMAGE_NAME="${{ env.IMAGE_NAME }}:test"
+          export IMAGE_NAME="${{ env.IMAGE_NAME }}:latest"
           bats tests/integration/test-${{ matrix.test }}.bats
 
   security-scan:
@@ -210,7 +209,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:test
+          image-ref: ${{ env.IMAGE_NAME }}:latest
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -225,7 +224,7 @@ jobs:
       - name: Run Trivy vulnerability scanner (table format)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:test
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cephaloproxy:latest
           format: 'table'
           exit-code: '0' # Don't fail build on vulnerabilities (report only)
           severity: 'CRITICAL,HIGH,MEDIUM'
@@ -266,7 +265,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cephaloproxy
           tags: |
             type=ref,event=pr
             type=semver,pattern={{version}}
@@ -284,8 +283,8 @@ jobs:
           # Tag the loaded image with all registry tags
           while IFS= read -r tag; do
             if [ -n "$tag" ]; then
-              echo "Tagging: ${{ env.IMAGE_NAME }}:test -> $tag"
-              docker tag ${{ env.IMAGE_NAME }}:test "$tag"
+              echo "Tagging: cephaloproxy:latest -> $tag"
+              docker tag cephaloproxy:latest "$tag"
               echo "Pushing: $tag"
               docker push "$tag"
             fi
