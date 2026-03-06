@@ -95,13 +95,15 @@ jobs:
         run: docker buildx bake --load --set *.platform=${{ matrix.platform }}
 
       - name: Save container image
-        run: docker save cephaloproxy:latest -o /tmp/cephaloproxy-${{ matrix.platform }}.tar
+        run: |
+          PLATFORM_TAG=$(echo "${{ matrix.platform }}" | tr '/' '-')
+          docker save cephaloproxy:latest -o /tmp/cephaloproxy-${PLATFORM_TAG}.tar
 
       - name: Upload container image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: container-image-${{ matrix.platform }}
-          path: /tmp/cephaloproxy-${{ matrix.platform }}.tar
+          name: container-image-${PLATFORM_TAG}
+          path: /tmp/cephaloproxy-${PLATFORM_TAG}.tar
           retention-days: 1
 
       # Prevent cache from growing indefinitely
@@ -209,8 +211,11 @@ jobs:
 
       - name: Load container images
         run: |
-          docker load -i /tmp/cephaloproxy-amd64.tar
-          docker load -i /tmp/cephaloproxy-arm64.tar
+          # Load images from all platform artifacts
+          ls /tmp/cephaloproxy-*.tar | while read tarfile; do
+            echo "Loading $tarfile"
+            docker load -i "$tarfile"
+          done
 
       - name: Run Trivy vulnerability scanner on amd64
         uses: aquasecurity/trivy-action@master
