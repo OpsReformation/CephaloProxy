@@ -60,6 +60,10 @@ jobs:
     name: Build Container Image
     runs-on: ubuntu-latest
     needs: lint-and-validate
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,29 +87,25 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ matrix.platform }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            ${{ runner.os }}-buildx-${{ matrix.platform }}-
 
-      - name: Build distroless container image using Docker Bake
-        run: docker buildx bake --load --set *.platform=linux/amd64
+      - name: Build container image for ${{ matrix.platform }}
+        run: docker buildx bake --load --set *.platform=${{ matrix.platform }}
 
       - name: Save container image
-        run: |
-          docker save ${{ env.IMAGE_NAME }}:latest -o /tmp/cephaloproxy-test.tar
+        run: docker save cephaloproxy:latest -o /tmp/cephaloproxy-${{ matrix.platform }}.tar
 
       - name: Upload container image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: container-image
-          path: /tmp/cephaloproxy-test.tar
+          name: container-image-${{ matrix.platform }}
+          path: /tmp/cephaloproxy-${{ matrix.platform }}.tar
           retention-days: 1
 
       # Prevent cache from growing indefinitely
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      # Note: GitHub Actions cache is managed by Docker BuildKit, no manual cleanup needed
 
   test-unit:
     name: Unit Tests
@@ -127,19 +127,23 @@ jobs:
             python3 -m pytest tests/unit/ -v || echo "No Python tests found or tests skipped"
           fi
 
-      - name: Download container image
+      - name: Download container images
         uses: actions/download-artifact@v4
         with:
-          name: container-image
+          pattern: container-image-*
           path: /tmp
 
-      - name: Load container image
+      - name: Load container images
         run: |
-          docker load -i /tmp/cephaloproxy-test.tar
+          # Load images from all platform artifacts
+          ls /tmp/cephaloproxy-*.tar | while read tarfile; do
+            echo "Loading $tarfile"
+            docker load -i "$tarfile"
+          done
 
       - name: Test container starts
         run: |
-          docker run -d --name test-squid -p 3128:3128 -p 8080:8080 ${{ env.IMAGE_NAME }}:latest
+          docker run -d --name test-squid -p 3128:3128 -p 8080:8080 cephaloproxy:latest
           sleep 10
           docker ps | grep test-squid
 
@@ -186,7 +190,7 @@ jobs:
 
       - name: Run integration tests - ${{ matrix.test }}
         run: |
-          export IMAGE_NAME="${{ env.IMAGE_NAME }}:latest"
+          export IMAGE_NAME="cephaloproxy:latest"
           bats tests/integration/test-${{ matrix.test }}.bats
 
   security-scan:
@@ -197,22 +201,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download container image
+      - name: Download container images
         uses: actions/download-artifact@v4
         with:
-          name: container-image
+          pattern: container-image-*
           path: /tmp
 
-      - name: Load container image
+      - name: Load container images
         run: |
-          docker load -i /tmp/cephaloproxy-test.tar
+          docker load -i /tmp/cephaloproxy-amd64.tar
+          docker load -i /tmp/cephaloproxy-arm64.tar
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner on amd64
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:latest
+          image-ref: cephaloproxy:latest
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-results-amd64.sarif'
           severity: 'CRITICAL,HIGH'
 
       # CodeQL upload
@@ -220,12 +225,12 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-results-amd64.sarif'
 
       - name: Run Trivy vulnerability scanner (table format)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cephaloproxy:latest
+          image-ref: ghcr.io/${{ github.repository_owner }}/cephaloproxy:latest
           format: 'table'
           exit-code: '0' # Don't fail build on vulnerabilities (report only)
           severity: 'CRITICAL,HIGH,MEDIUM'
