@@ -92,7 +92,20 @@ jobs:
             ${{ runner.os }}-buildx-${{ matrix.platform }}-
 
       - name: Build container image for ${{ matrix.platform }}
-        run: docker buildx bake --load --set *.platform=${{ matrix.platform }}
+        run: |
+          docker buildx build \
+            --load \
+            --platform ${{ matrix.platform }} \
+            --tag cephaloproxy:latest \
+            --file container/Dockerfile.distroless \
+            --build-arg DISTROLESS_BASE=gcr.io/distroless/python3-debian12 \
+            --build-arg DISTROLESS_BASE_SHA=sha256:8ce6bba3f793ba7d834467dfe18983c42f9b223604970273e9e3a22b1891fc27 \
+            --build-arg DEBIAN_VERSION=12 \
+            --build-arg BUILDPLATFORM=${{ matrix.platform }} \
+            --build-arg TARGETPLATFORM=${{ matrix.platform }} \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max,compression=zstd \
+            -- .
 
       - name: Save container image
         run: |
