@@ -108,15 +108,17 @@ jobs:
             -- .
 
       - name: Save container image
+        id: save-image
         run: |
           PLATFORM_TAG=$(echo "${{ matrix.platform }}" | tr '/' '-')
           docker save cephaloproxy:latest -o /tmp/cephaloproxy-${PLATFORM_TAG}.tar
+          echo "platform_tag=${PLATFORM_TAG}" >> $GITHUB_OUTPUT
 
       - name: Upload container image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: container-image-${PLATFORM_TAG}
-          path: /tmp/cephaloproxy-${PLATFORM_TAG}.tar
+          name: container-image-${{ steps.save-image.outputs.platform_tag }}
+          path: /tmp/cephaloproxy-${{ steps.save-image.outputs.platform_tag }}.tar
           retention-days: 1
 
       # Prevent cache from growing indefinitely
@@ -142,19 +144,15 @@ jobs:
             python3 -m pytest tests/unit/ -v || echo "No Python tests found or tests skipped"
           fi
 
-      - name: Download container images
+      - name: Download container image
         uses: actions/download-artifact@v4
         with:
-          pattern: container-image-*
+          name: container-image-linux-amd64
           path: /tmp
 
-      - name: Load container images
+      - name: Load container image
         run: |
-          # Load images from all platform artifacts
-          ls /tmp/cephaloproxy-*.tar | while read tarfile; do
-            echo "Loading $tarfile"
-            docker load -i "$tarfile"
-          done
+          docker load -i /tmp/cephaloproxy-linux-amd64.tar
 
       - name: Test container starts
         run: |
@@ -191,12 +189,12 @@ jobs:
       - name: Download container image
         uses: actions/download-artifact@v4
         with:
-          name: container-image
+          name: container-image-linux-amd64
           path: /tmp
 
       - name: Load container image
         run: |
-          docker load -i /tmp/cephaloproxy-test.tar
+          docker load -i /tmp/cephaloproxy-linux-amd64.tar
 
       - name: Install bats
         run: |
@@ -216,19 +214,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download container images
+      - name: Download container image
         uses: actions/download-artifact@v4
         with:
-          pattern: container-image-*
+          name: container-image-linux-amd64
           path: /tmp
 
-      - name: Load container images
+      - name: Load container image
         run: |
-          # Load images from all platform artifacts
-          ls /tmp/cephaloproxy-*.tar | while read tarfile; do
-            echo "Loading $tarfile"
-            docker load -i "$tarfile"
-          done
+          docker load -i /tmp/cephaloproxy-linux-amd64.tar
 
       - name: Run Trivy vulnerability scanner on amd64
         uses: aquasecurity/trivy-action@master
@@ -267,15 +261,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download container image artifact
+      - name: Download container image artifacts
         uses: actions/download-artifact@v4
         with:
-          name: container-image
-          path: /tmp
+          pattern: container-image-*
+          path: /tmp/images
+          merge-multiple: false
 
-      - name: Load container image
+      - name: Load container images
         run: |
-          docker load --input /tmp/cephaloproxy-test.tar
+          find /tmp/images -name "*.tar" | while read tarfile; do
+            echo "Loading $tarfile"
+            docker load -i "$tarfile"
+          done
           docker images
 
       - name: Log in to Container Registry
