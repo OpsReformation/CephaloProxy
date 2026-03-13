@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Dockerfile with hadolint
         uses: hadolint/hadolint-action@v3.1.0
@@ -66,10 +66,10 @@ jobs:
         platform: [linux/amd64, linux/arm64]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Check BuildKit availability
         run: |
@@ -82,14 +82,6 @@ jobs:
             exit 1
           fi
           echo "BuildKit is available and ready for use"
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.platform }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ matrix.platform }}-
 
       - name: Build container image for ${{ matrix.platform }}
         run: |
@@ -115,7 +107,7 @@ jobs:
           echo "platform_tag=${PLATFORM_TAG}" >> $GITHUB_OUTPUT
 
       - name: Upload container image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: container-image-${{ steps.save-image.outputs.platform_tag }}
           path: /tmp/cephaloproxy-${{ steps.save-image.outputs.platform_tag }}.tar
@@ -130,7 +122,7 @@ jobs:
     needs: build
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -145,7 +137,7 @@ jobs:
           fi
 
       - name: Download container image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: container-image-linux-amd64
           path: /tmp
@@ -184,10 +176,10 @@ jobs:
         test: [basic-proxy, health-checks, acl-filtering]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download container image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: container-image-linux-amd64
           path: /tmp
@@ -212,10 +204,10 @@ jobs:
     needs: build
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download container image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: container-image-linux-amd64
           path: /tmp
@@ -232,6 +224,14 @@ jobs:
           output: 'trivy-results-amd64.sarif'
           severity: 'CRITICAL,HIGH'
 
+      - name: Run Trivy vulnerability scanner (table format)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: cephaloproxy:latest
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
       # CodeQL upload
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
@@ -239,13 +239,6 @@ jobs:
         with:
           sarif_file: 'trivy-results-amd64.sarif'
 
-      - name: Run Trivy vulnerability scanner (table format)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/cephaloproxy:latest
-          format: 'table'
-          exit-code: '0' # Don't fail build on vulnerabilities (report only)
-          severity: 'CRITICAL,HIGH,MEDIUM'
 
   push:
     name: Push Container Image
@@ -259,10 +252,10 @@ jobs:
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download container image artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: container-image-*
           path: /tmp/images
