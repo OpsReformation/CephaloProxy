@@ -22,73 +22,42 @@ instructions.
 
 ## Building with Docker Bake
 
-The CephaloProxy container supports Docker Bake for multi-platform builds and
-optimized caching. Docker Bake is enabled by default in modern Docker versions.
+The CephaloProxy container uses Docker Bake for multi-platform builds.
+Docker Bake is enabled by default in modern Docker versions.
 
 ### Prerequisites
 
 - Docker Engine 20.10+ with BuildKit support
-- Docker BuildKit enabled (default in modern Docker versions)
 
-### Build Commands
-
-#### Build for All Platforms (Recommended for CI/CD)
+### Local Development Build
 
 ```bash
 docker buildx bake
 ```
 
-Builds for both linux/amd64 and linux/arm64 with GitHub Actions cache
-integration.
-
-**Cache Backend**: GitHub Actions cache (gha backend)
-
-- Native CI/CD integration
-- Persists across workflow runs
-- No registry access required
-- Max mode with zstd compression for optimal cache size
-
-#### Build for Single Platform (Testing)
-
-```bash
-# Build for amd64 only
-docker buildx bake amd64-only
-
-# Build for arm64 only
-docker buildx bake arm64-only
-```
-
-#### Local Development Build
-
-```bash
-docker buildx bake dev
-```
-
-Builds for amd64 only with local cache for faster rebuilds.
-
-**Cache Backend**: Local filesystem cache (local backend)
-
-- Full control over cache location
-- Faster than registry-based cache
-- Exported to `/tmp/docker-build-cache-new` for reuse
-- Not pushed to registry - use only for local development
-
-#### Override Base Image Version
-
-```bash
-docker buildx bake \
-  --var DISTROLESS_BASE=gcr.io/distroless/python3-debian13 \
-  --var DEBIAN_VERSION=13
-```
+Builds for the host platform, loads into the local Docker daemon, and tags the
+image as `cephaloproxy:dev`. BuildKit's internal cache handles fast iterative
+rebuilds automatically — no extra configuration needed.
 
 ### Build Targets
 
-| Target | Platforms | Description |
-|--------|-----------|-------------|
-| `cephaloproxy` | amd64, arm64 | Multi-platform main target |
-| `amd64-only` | amd64 | Single platform for testing |
-| `arm64-only` | arm64 | Single platform for testing |
-| `dev` | amd64 | Development build with local cache |
+| Target | Platforms | Tag | Description |
+|--------|-----------|-----|-------------|
+| `image` | host platform | `cephaloproxy:dev` | Default — local development build |
+
+### CI/CD
+
+CI builds are handled by `.github/workflows/build-and-test.yml` using a
+digest-based promotion pipeline:
+
+1. Each platform (`linux/amd64`, `linux/arm64`) is built and pushed to the
+   registry by content digest — no tag applied yet
+2. Tests and security scans run against those exact digests
+3. After all tests pass, `docker buildx imagetools create` assembles a
+   multi-arch manifest and applies the final tags
+
+The GHA cache backend (`type=gha`) is used for layer caching in CI, scoped per
+platform.
 
 See
 [specs/004-docker-bake-build/quickstart.md](specs/004-docker-bake-build/quickstart.md)
@@ -101,7 +70,7 @@ docker run -d \
   --name squid-proxy \
   -p 3128:3128 \
   -p 8080:8080 \
-  cephaloproxy:latest
+  cephaloproxy:dev
 
 # Test the proxy
 export http_proxy=http://localhost:3128

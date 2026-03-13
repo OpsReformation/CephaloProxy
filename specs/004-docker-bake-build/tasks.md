@@ -55,8 +55,8 @@
 - [X] T011 [US1] Add cache-to directive to cephaloproxy target with max mode and zstd compression
 - [X] T012 [US1] Configure tags for cephaloproxy target (cephaloproxy:latest, cephaloproxy:${VERSION})
 - [X] T013 [US1] Update README.md to document multi-platform build command `docker buildx bake`
-- [ ] T014 [US1] Verify single-platform build command `docker buildx bake amd64-only` works
-- [ ] T015 [US1] Verify single-platform build command `docker buildx bake arm64-only` works
+- [N/A] T014 [US1] ~~Verify single-platform build command `docker buildx bake amd64-only` works~~ — `amd64-only` target removed; per-platform builds driven by workflow matrix
+- [N/A] T015 [US1] ~~Verify single-platform build command `docker buildx bake arm64-only` works~~ — `arm64-only` target removed; per-platform builds driven by workflow matrix
 
 **Checkpoint**: At this point, User Story 1 should be fully functional - multi-platform builds work with caching
 
@@ -70,10 +70,10 @@
 
 ### Implementation for User Story 2
 
-- [X] T016 [US2] Configure dev target in docker-bake.hcl for local development with local cache
-- [X] T017 [US2] Add local cache source (type=local,src=/tmp/docker-build-cache) to dev target
-- [X] T018 [US2] Add local cache destination (type=local,dest=/tmp/docker-build-cache-new) to dev target
-- [X] T019 [US2] Update README.md to document development build command `docker buildx bake dev`
+- [N/A] T016 [US2] ~~Configure dev target in docker-bake.hcl for local development with local cache~~ — `dev` target removed; `image` target with BuildKit internal cache is sufficient
+- [N/A] T017 [US2] ~~Add local cache source (type=local,src=/tmp/docker-build-cache) to dev target~~ — superseded
+- [N/A] T018 [US2] ~~Add local cache destination (type=local,dest=/tmp/docker-build-cache-new) to dev target~~ — superseded
+- [X] T019 [US2] Update README.md to document development build command `docker buildx bake`
 - [X] T020 [US2] Add build-time validation script to check BuildKit availability (check for BUILDKIT_DISABLE and buildx version)
 - [X] T021 [US2] Update GitHub Actions workflow to use `docker buildx bake` command instead of `docker build`
 
@@ -89,16 +89,16 @@
 
 ### Implementation for User Story 3
 
-- [X] T022 [US3] Configure amd64-only target in docker-bake.hcl to inherit from base
-- [X] T023 [US3] Configure arm64-only target in docker-bake.hcl to inherit from base
-- [X] T024 [US3] Add tags for amd64-only target (cephaloproxy:amd64-latest, cephaloproxy:amd64-${VERSION})
-- [X] T025 [US3] Add tags for arm64-only target (cephaloproxy:arm64-latest, cephaloproxy:arm64-${VERSION})
-- [X] T026 [US3] Add cache-from directive to amd64-only target for GitHub Actions cache
-- [X] T027 [US3] Add cache-from directive to arm64-only target for GitHub Actions cache
-- [X] T028 [US3] Add cache-to directive to amd64-only target with GitHub Actions cache
-- [X] T029 [US3] Add cache-to directive to arm64-only target with GitHub Actions cache
-- [X] T043 [US3] Create single-platform group in docker-bake.hcl with amd64-only and arm64-only targets
-- [X] T044 [US3] Update README.md to document single-platform build commands `docker buildx bake amd64-only` and `docker buildx bake arm64-only`
+- [N/A] T022 [US3] ~~Configure amd64-only target~~ — removed; platform selection via workflow matrix `set` overrides
+- [N/A] T023 [US3] ~~Configure arm64-only target~~ — removed; platform selection via workflow matrix `set` overrides
+- [N/A] T024 [US3] ~~Add tags for amd64-only target~~ — superseded by digest-based pipeline; tags applied at merge step
+- [N/A] T025 [US3] ~~Add tags for arm64-only target~~ — superseded by digest-based pipeline; tags applied at merge step
+- [N/A] T026 [US3] ~~Add cache-from to amd64-only~~ — cache configured via workflow `set` inputs
+- [N/A] T027 [US3] ~~Add cache-from to arm64-only~~ — cache configured via workflow `set` inputs
+- [N/A] T028 [US3] ~~Add cache-to to amd64-only~~ — cache configured via workflow `set` inputs
+- [N/A] T029 [US3] ~~Add cache-to to arm64-only~~ — cache configured via workflow `set` inputs
+- [N/A] T043 [US3] ~~Create single-platform group~~ — removed; CI uses workflow matrix, not bake groups
+- [X] T044 [US3] Update README.md to document build commands
 
 **Checkpoint**: All user stories should now be independently functional - complete Docker Bake system
 

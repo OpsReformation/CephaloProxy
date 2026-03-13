@@ -49,14 +49,16 @@ As a system administrator, I want to build Docker images for different platforms
 with a single command, so that I can deploy consistently across different
 environments.
 
-**Acceptance Criteria**:
+**Acceptance Criteria** *(updated 2026-03-13)*:
 
-- [ ] `docker buildx bake single-platform` command successfully builds
-  amd64-only and arm64-only images
-- [ ] Platform-specific tags are correctly applied (e.g.,
-  `cephaloproxy:amd64-latest`)
-- [ ] Single-platform builds can be run independently of multi-platform builds
-- [ ] Platform-specific targets inherit correctly from base target configuration
+- [x] Multi-platform builds (amd64 + arm64) are produced by CI via a
+  digest-based pipeline — each platform built separately, merged into a
+  multi-arch manifest at the end
+- [x] Per-platform builds are driven by the workflow matrix; named
+  `amd64-only`/`arm64-only` bake targets are no longer used — platform
+  selection is done via `set` overrides in the workflow
+- [x] Platform-specific targets inherit correctly from `base` target
+- [x] Local builds default to the host platform via `docker buildx bake`
 
 ## Requirements *(mandatory)*
 
@@ -66,9 +68,11 @@ environments.
   platforms (amd64, arm64)
 - **FR-002**: The Docker bake configuration must support building with cache
   sharing between platforms using Docker BuildKit's cache backends
-  - CI/CD: GitHub Actions cache (gha backend)
-  - Local development: Local filesystem cache (local backend)
-  - No registry cache backend required
+  - CI/CD: GitHub Actions cache (`type=gha`) scoped per platform — persists
+    across workflow runs within the 7-day GHA expiry window, which suits the
+    project's burst build cadence
+  - Local development: BuildKit's internal cache (no explicit configuration
+    required — handled automatically by the buildx daemon)
 - **FR-003**: The Docker bake configuration must support multi-stage builds for
   multi-platform support
 - **FR-004**: The Docker bake configuration must support building for different

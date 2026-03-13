@@ -2,312 +2,208 @@
 
 ## Overview
 
-This guide provides quick instructions for building the CephaloProxy container
-using Docker Bake. Docker Bake allows you to build multi-platform containers
-(amd64, arm64) with a single command.
+This guide covers building the CephaloProxy container locally using Docker Bake,
+and explains how the CI/CD pipeline handles multi-platform builds and registry
+promotion.
 
 ## Prerequisites
 
-- Docker Engine 20.10+ with BuildKit support
-- Docker BuildKit enabled (default in modern Docker versions)
-- At least 2GB free disk space for cache
+- Docker Engine 20.10+ with BuildKit support (enabled by default in modern
+  Docker versions)
 - Internet connection for pulling base images
 
-## Quick Build Commands
-
-### Build for All Platforms (Recommended for CI/CD)
+## Local Development Build
 
 ```bash
 docker buildx bake
 ```
 
-**What this does**:
+This runs the default `image` target, which:
 
-- Builds for both linux/amd64 and linux/arm64
-- Uses registry cache for faster builds
-- Exports cache for future builds
+- Builds for the host platform (e.g. `linux/amd64` on a standard workstation)
+- Loads the image into the local Docker daemon
+- Tags the image as `cephaloproxy:dev`
 
-**Expected time**: ~120 seconds
-
-### Build for Single Platform (Testing)
-
-```bash
-# Build for amd64 only
-docker buildx bake amd64-only
-
-# Build for arm64 only
-docker buildx bake arm64-only
-```
-
-**What this does**:
-
-- Builds for a single architecture
-- Useful for testing before full multi-platform build
-
-**Expected time**: ~60 seconds
-
-### Local Development Build
-
-```bash
-docker buildx bake dev
-```
-
-**What this does**:
-
-- Builds for amd64 only
-- Uses local cache for faster rebuilds
-- Exports cache to `/tmp/docker-build-cache-new`
-
-**Expected time**: ~60 seconds
-
-## Registry-Based Cache
-
-By default, Docker Bake uses registry-based caching. This means:
-
-- Cache is stored in your container registry
-- Cache persists across builds
-- Cache is shared across platforms
-- No local cache management needed
-
-**Example Registry**: GitHub Container Registry
-
-```bash
-# Build with custom registry
-docker buildx bake --set REGISTRY=myregistry.io/cephaloproxy
-```
-
-## Local Cache (Development)
-
-If you want to use local cache for faster builds:
-
-```bash
-# Create local cache directory
-mkdir -p /tmp/docker-build-cache
-
-# Build with local cache
-docker buildx bake dev
-```
-
-**Note**: Local cache is not pushed to registry. Use it only for local
-development.
-
-## Base Image Overrides
-
-You can override the base image version:
-
-```bash
-# Use Debian 13 (if available)
-docker buildx bake \
-  --var DISTROLESS_BASE=gcr.io/distroless/python3-debian13 \
-  --var DEBIAN_VERSION=13
-```
+BuildKit's internal cache handles fast iterative rebuilds automatically. No
+explicit cache configuration is needed for local development.
 
 ## Build Targets
 
-Docker Bake defines several targets:
+| Target | Platforms | Tag | Cache | Description |
+|--------|-----------|-----|-------|-------------|
+| `image` | host platform | `cephaloproxy:dev` | BuildKit internal | Default local build |
 
-| Target | Platforms | Description |
-|--------|-----------|-------------|
-| `base` | - | Base settings, inherited by others |
-| `cephaloproxy` | amd64, arm64 | Multi-platform main target |
-| `amd64-only` | amd64 | Single platform for testing |
-| `arm64-only` | arm64 | Single platform for testing |
-| `dev` | amd64 | Development build with local cache |
-
-**List all targets**:
-
-```bash
-docker buildx bake --list=targets
-```
-
-## Build Groups
-
-**Default group** (multi-platform):
-
-```bash
-docker buildx bake
-```
-
-**Development group**:
-
-```bash
-docker buildx bake dev
-```
+> **Note**: The `image` target's tag and output settings are fully overridden in
+> CI via `docker/bake-action` `set` inputs. The `cephaloproxy:dev` tag only
+> applies to local builds.
 
 ## Verification
 
 ### Verify Build Success
 
 ```bash
-# Check built images
 docker images | grep cephaloproxy
-
-# Expected output:
-# cephaloproxy    latest    <digest>    <size>    ...
-# cephaloproxy    buildcache    <digest>    <size>    ...
+# cephaloproxy    dev    <digest>    <date>    <size>
 ```
 
-### Test Container
+### Test the Container
 
 ```bash
-# Run container
-docker run -d --name test-squid -p 3128:3128 -p 8080:8080 cephaloproxy:latest
-
-# Wait for startup
+docker run -d --name test-squid -p 3128:3128 -p 8080:8080 cephaloproxy:dev
 sleep 10
 
-# Check health endpoint
 curl http://localhost:8080/health
-
-# Check proxy functionality
+curl http://localhost:8080/ready
 curl -x http://localhost:3128 -I http://example.com
 
-# Cleanup
-docker stop test-squid
-docker rm test-squid
+docker stop test-squid && docker rm test-squid
 ```
 
-### Verify Cache
+## Override Base Image Version
 
 ```bash
-# Check build cache in registry
-docker buildx du
-
-# Expected output:
-# NAME                        SIZE     PLATFORMS
-# cephaloproxy:buildcache     500MB    linux/amd64, linux/arm64
+docker buildx bake \
+  --set "*.args.DISTROLESS_BASE=gcr.io/distroless/python3-debian13" \
+  --set "*.args.DEBIAN_VERSION=13"
 ```
-
-## Troubleshooting
-
-### BuildKit Not Available
-
-**Error**:
-
-```
-Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx builder.
-```
-
-**Solution**:
-
-```bash
-# Enable BuildKit
-export DOCKER_BUILDKIT=1
-
-# Or create buildx builder
-docker buildx create --name buildkit --use --driver=docker
-```
-
-### Base Image Not Found
-
-**Error**:
-
-```
-Error: failed to solve: gcr.io/distroless/python3-debian12@sha256:invalid
-```
-
-**Solution**: Check base image name and SHA in `docker-bake.hcl`
-
-### Permission Denied
-
-**Error**:
-
-```
-Error: permission denied while trying to connect to the Docker daemon socket
-```
-
-**Solution**: Run with appropriate permissions or add user to docker group
-
-### Cache Issues
-
-**Symptom**: Build takes too long or doesn't use cache
-
-**Solution**:
-
-```bash
-# Clear build cache
-docker buildx prune
-
-# Force rebuild
-docker buildx bake --no-cache
-```
-
-## Best Practices
-
-1. **Always use BuildKit**: `export DOCKER_BUILDKIT=1`
-2. **Use multi-platform builds** in CI/CD for production
-3. **Test single platforms** before full multi-platform builds
-4. **Use registry cache** for CI/CD environments
-5. **Use local cache** for local development
-6. **Monitor cache size**: `docker buildx du`
-7. **Clean up cache periodically**: `docker buildx prune`
 
 ## Advanced Usage
 
-### Dry Run
+### Dry Run (validate config without building)
 
 ```bash
 docker buildx bake --print
 ```
 
-**Shows**: Validated configuration without building
-
-### Progress Output
+### Detailed Build Logs
 
 ```bash
 docker buildx bake --progress=plain
 ```
 
-**Shows**: Detailed build logs with cache status
-
-### Override Multiple Variables
+### Inspect Cache Usage
 
 ```bash
-docker buildx bake \
-  --var REGISTRY=myregistry.io/cephaloproxy \
-  --var VERSION=1.0.0 \
-  --var DEBIAN_VERSION=12
+docker buildx du
 ```
 
-### Build Specific Target
+### Clear Build Cache
 
 ```bash
-docker buildx bake amd64-only
+docker buildx prune
 ```
 
-### Check BuildKit Status
+## CI/CD Pipeline
+
+The GitHub Actions workflow (`.github/workflows/build-and-test.yml`) uses a
+digest-based promotion pipeline to ensure the exact image that was tested is
+what gets tagged and shipped.
+
+### Pipeline Jobs
+
+```
+lint-and-validate → plan → build (×2: linux/amd64, linux/arm64)
+                               ↓
+              test-unit, test-integration, security-scan
+              (all pull the amd64 image by digest — no rebuild)
+                               ↓
+                  merge (only on push to main / workflow_dispatch)
+                  docker buildx imagetools create → tags applied
+```
+
+### Build Job
+
+Each platform job runs `docker/bake-action` with the `image` target and
+overrides via `set`:
+
+```
+*.platform=linux/amd64            # one per matrix job
+*.output=...push-by-digest=true   # push to registry, no tag yet
+*.cache-from=type=gha,scope=...   # GHA cache per platform
+*.cache-to=type=gha,mode=max,...
+*.tags=                           # cleared; tags applied at merge
+*.provenance=false                # suppress unknown/unknown manifest entry
+```
+
+The digest of each built image is captured and uploaded as a workflow artifact.
+
+### Test and Scan Jobs
+
+Tests pull the `linux/amd64` image directly from the registry by its content
+digest — the same binary that was pushed in the build step:
 
 ```bash
-docker buildx version
-docker buildx ls
-docker buildx inspect default
+docker pull ghcr.io/opsreformation/cephaloproxy@sha256:<digest>
+docker tag ghcr.io/opsreformation/cephaloproxy@sha256:<digest> cephaloproxy:latest
 ```
 
-## Integration with CI/CD
+### Merge Job
 
-### GitHub Actions Example
+After all tests pass, the merge job assembles the per-platform digests into a
+multi-arch manifest and applies tags:
 
-```yaml
-- name: Build container
-  run: docker buildx bake
-
-- name: Push to registry
-  run: docker buildx bake --push
+```bash
+docker buildx imagetools create \
+  -t ghcr.io/opsreformation/cephaloproxy:latest \
+  -t ghcr.io/opsreformation/cephaloproxy:sha-<sha> \
+  ghcr.io/opsreformation/cephaloproxy@sha256:<amd64-digest> \
+  ghcr.io/opsreformation/cephaloproxy@sha256:<arm64-digest>
 ```
 
-### Docker Compose Example
+Tags are generated by `docker/metadata-action` in the `plan` job and shared to
+all downstream jobs via a bake-file artifact.
 
-```yaml
-services:
-  squid:
-    image: cephaloproxy:latest
-    build:
-      target: cephaloproxy
+### Cache Strategy
+
+CI uses the GitHub Actions cache backend (`type=gha`), scoped per platform:
+
+- `scope=linux/amd64` — amd64 layers
+- `scope=linux/arm64` — arm64 layers
+
+Cache entries expire after 7 days of inactivity, which is appropriate for this
+project's build cadence (burst builds during feature development, quiet between
+features). A cold first build after an idle period is expected and acceptable.
+
+## Troubleshooting
+
+### BuildKit Not Available
+
+```
+Error: failed to create builder
 ```
 
-## Next Steps
+```bash
+docker buildx create --name builder --use
+docker buildx inspect --bootstrap
+```
 
-- Review [data-model.md](./data-model.md) for configuration details
-- Review [build-api.md](./contracts/build-api.md) for API contracts
-- Update [README.md](../README.md) with these commands
-- Update `.github/workflows/build-and-test.yml` to use Docker Bake
+### Base Image Not Found
+
+```
+Error: failed to solve: gcr.io/distroless/python3-debian12@sha256:invalid
+```
+
+Check `DISTROLESS_BASE_SHA` in `docker-bake.hcl` matches the current digest of
+the base image.
+
+### Permission Denied
+
+```
+Error: permission denied while trying to connect to the Docker daemon socket
+```
+
+Add your user to the `docker` group or run with appropriate permissions.
+
+### Image Tagged as `dev` in CI
+
+The `*.tags=` set override in the workflow clears the `cephaloproxy:dev`
+fallback tag. If you see `dev` tags appearing in the registry, check that the
+`*.tags=` line is present in the build job's `set` block.
+
+## Reference
+
+- [docker-bake.hcl](../../docker-bake.hcl) — Bake configuration
+- [build-and-test.yml](../../.github/workflows/build-and-test.yml) — CI/CD
+  workflow
+- [data-model.md](./data-model.md) — Build configuration entities
+- [build-api.md](./contracts/build-api.md) — Build command contracts

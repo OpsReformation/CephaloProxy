@@ -41,20 +41,10 @@ target "base" {
 # =============================================================================
 target "image" {
   inherits = ["base", "docker-metadata-action"]
-  tags     = ["cephaloproxy:latest", "cephaloproxy:${VERSION}"]
-  load     = true
-}
-
-# =============================================================================
-# Local development target with local filesystem cache.
-# =============================================================================
-target "dev" {
-  inherits  = ["base"]
-  platforms = ["linux/amd64"]
-  tags      = ["cephaloproxy:dev"]
-  load      = true
-  cache-from = ["type=local,src=/tmp/docker-build-cache"]
-  cache-to   = ["type=local,dest=/tmp/docker-build-cache-new,mode=max"]
+  # "dev" tag is used for local builds. In CI, *.tags= clears this and the
+  # merge step applies the real registry tags via docker/metadata-action.
+  tags = ["cephaloproxy:dev"]
+  load = true
 }
 
 # =============================================================================
