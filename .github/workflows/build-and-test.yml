@@ -79,6 +79,7 @@ jobs:
         uses: docker/bake-action@v6
         with:
           targets: ${{ matrix.target }}
+          load: true
 
       - name: Save container image
         run: |
