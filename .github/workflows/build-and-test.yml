@@ -1,3 +1,4 @@
+---
 name: Build and Test CephaloProxy
 
 on:
@@ -27,9 +28,8 @@ on:
         default: false
 
 env:
-  IMAGE_NAME: cephaloproxy
-  IMAGE_TAG: ${{ github.sha }}
   REGISTRY: ghcr.io
+  IMAGE_NAME: cephaloproxy
 
 jobs:
   lint-and-validate:
@@ -56,46 +56,124 @@ jobs:
           python3 -m py_compile container/healthcheck.py
           python3 -m py_compile container/init-squid.py
 
-  build:
-    name: Build Container Image
+  # ---------------------------------------------------------------------------
+  # Plan: compute the lowercase image repository path and generate Docker
+  # metadata (tags, labels) once. Both outputs are shared as artifacts so
+  # every downstream job uses identical values.
+  # ---------------------------------------------------------------------------
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
     needs: lint-and-validate
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: amd64-only
-            platform_tag: linux-amd64
-          - target: arm64-only
-            platform_tag: linux-arm64
+    outputs:
+      image-repo: ${{ steps.image-repo.outputs.value }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Set image repository
+        id: image-repo
+        run: |
+          echo "value=$(echo '${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Generate metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image-repo.outputs.value }}
+          tags: |
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=sha
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Upload bake metadata
+        uses: actions/upload-artifact@v6
+        with:
+          name: bake-metadata
+          path: ${{ steps.meta.outputs.bake-file }}
+          if-no-files-found: error
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # Build: one job per platform. Each job pushes its image to the registry
+  # by content digest (no tag applied yet) and uploads the digest as an
+  # artifact. Tests run against the exact digest — no rebuild.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    needs: plan
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Get target architecture
+        id: arch
+        run: echo "arch=$(echo '${{ matrix.platform }}' | cut -d/ -f2)" >> $GITHUB_OUTPUT
+
+      - name: Download bake metadata
+        uses: actions/download-artifact@v7
+        with:
+          name: bake-metadata
+          path: /tmp/bake-metadata
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build container image (${{ matrix.target }})
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: bake
         uses: docker/bake-action@v6
         with:
-          targets: ${{ matrix.target }}
-          load: true
+          targets: image
+          files: |
+            ./docker-bake.hcl
+            cwd:///tmp/bake-metadata/docker-metadata-action-bake.json
+          set: |
+            *.platform=${{ matrix.platform }}
+            *.output=type=image,name=${{ needs.plan.outputs.image-repo }},push-by-digest=true,name-canonical=true,push=true
+            *.cache-from=type=registry,ref=${{ needs.plan.outputs.image-repo }}-build-cache:${{ steps.arch.outputs.arch }}
+            *.cache-to=type=registry,ref=${{ needs.plan.outputs.image-repo }}-build-cache:${{ steps.arch.outputs.arch }},mode=max,compression=zstd
+            *.tags=
 
-      - name: Save container image
+      - name: Export digest
         run: |
-          docker save cephaloproxy:latest -o /tmp/cephaloproxy-${{ matrix.platform_tag }}.tar
+          mkdir -p /tmp/digests
+          DIGEST="${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.digest'] }}"
+          touch "/tmp/digests/${DIGEST#sha256:}"
 
-      - name: Upload container image artifact
+      - name: Upload digest
         uses: actions/upload-artifact@v6
         with:
-          name: container-image-${{ matrix.platform_tag }}
-          path: /tmp/cephaloproxy-${{ matrix.platform_tag }}.tar
+          name: digest-${{ steps.arch.outputs.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
           retention-days: 1
 
+  # ---------------------------------------------------------------------------
+  # Tests and security scan: pull the amd64 image by its exact digest and
+  # test it directly — this is the same binary that will be tagged and shipped.
+  # ---------------------------------------------------------------------------
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: build
+    needs: [plan, build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -107,20 +185,28 @@ jobs:
 
       - name: Run Python unit tests
         run: |
-          # Run Python unit tests for init-squid.py if they exist
           if [ -d "tests/unit" ]; then
             python3 -m pytest tests/unit/ -v || echo "No Python tests found or tests skipped"
           fi
 
-      - name: Download container image
+      - name: Download amd64 digest
         uses: actions/download-artifact@v7
         with:
-          name: container-image-linux-amd64
-          path: /tmp
+          name: digest-amd64
+          path: /tmp/digests
 
-      - name: Load container image
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image by digest
         run: |
-          docker load -i /tmp/cephaloproxy-linux-amd64.tar
+          DIGEST="sha256:$(ls /tmp/digests)"
+          docker pull ${{ needs.plan.outputs.image-repo }}@${DIGEST}
+          docker tag ${{ needs.plan.outputs.image-repo }}@${DIGEST} cephaloproxy:latest
 
       - name: Test container starts
         run: |
@@ -146,7 +232,7 @@ jobs:
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: build
+    needs: [plan, build]
     strategy:
       matrix:
         test: [basic-proxy, health-checks, acl-filtering]
@@ -154,15 +240,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Download container image
+      - name: Download amd64 digest
         uses: actions/download-artifact@v7
         with:
-          name: container-image-linux-amd64
-          path: /tmp
+          name: digest-amd64
+          path: /tmp/digests
 
-      - name: Load container image
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image by digest
         run: |
-          docker load -i /tmp/cephaloproxy-linux-amd64.tar
+          DIGEST="sha256:$(ls /tmp/digests)"
+          docker pull ${{ needs.plan.outputs.image-repo }}@${DIGEST}
+          docker tag ${{ needs.plan.outputs.image-repo }}@${DIGEST} cephaloproxy:latest
 
       - name: Install bats
         run: |
@@ -177,73 +272,16 @@ jobs:
   security-scan:
     name: Security Vulnerability Scan
     runs-on: ubuntu-latest
-    needs: build
+    needs: [plan, build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Download container image
+      - name: Download amd64 digest
         uses: actions/download-artifact@v7
         with:
-          name: container-image-linux-amd64
-          path: /tmp
-
-      - name: Load container image
-        run: |
-          docker load -i /tmp/cephaloproxy-linux-amd64.tar
-
-      - name: Run Trivy vulnerability scanner on amd64
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: cephaloproxy:latest
-          format: 'sarif'
-          output: 'trivy-results-amd64.sarif'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy vulnerability scanner (table format)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: cephaloproxy:latest
-          format: 'table'
-          exit-code: '0'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-
-      # CodeQL upload
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'trivy-results-amd64.sarif'
-
-
-  push:
-    name: Push Container Image
-    runs-on: ubuntu-latest
-    needs: [test-unit, test-integration, security-scan]
-    if: |
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.push_to_registry == true)
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Download container image artifacts
-        uses: actions/download-artifact@v7
-        with:
-          pattern: container-image-*
-          path: /tmp/images
-          merge-multiple: false
-
-      - name: Load container images
-        run: |
-          find /tmp/images -name "*.tar" | while read tarfile; do
-            echo "Loading $tarfile"
-            docker load -i "$tarfile"
-          done
-          docker images
+          name: digest-amd64
+          path: /tmp/digests
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -252,40 +290,89 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cephaloproxy
-          tags: |
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-            type=sha
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-
-      - name: Tag and push tested image
+      - name: Pull image by digest
         run: |
-          # Extract tags from metadata output (one per line)
-          echo "Generated tags:"
-          echo "${{ steps.meta.outputs.tags }}"
+          DIGEST="sha256:$(ls /tmp/digests)"
+          IMAGE_REF="${{ needs.plan.outputs.image-repo }}@${DIGEST}"
+          docker pull ${IMAGE_REF}
+          echo "IMAGE_REF=${IMAGE_REF}" >> $GITHUB_ENV
 
-          # Tag the loaded image with all registry tags
-          while IFS= read -r tag; do
-            if [ -n "$tag" ]; then
-              echo "Tagging: cephaloproxy:latest -> $tag"
-              docker tag cephaloproxy:latest "$tag"
-              echo "Pushing: $tag"
-              docker push "$tag"
-            fi
-          done <<< "${{ steps.meta.outputs.tags }}"
+      - name: Run Trivy vulnerability scanner (SARIF)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_REF }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy vulnerability scanner (table)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_REF }}
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ---------------------------------------------------------------------------
+  # Merge: assemble the per-platform digests into a single multi-arch manifest
+  # and apply tags. Only runs when tests pass and a push to the registry is
+  # warranted. The imagetools create command is idempotent — re-running it
+  # with the same digests produces the same manifest digest.
+  # ---------------------------------------------------------------------------
+  merge:
+    name: Merge and Push
+    runs-on: ubuntu-latest
+    needs: [plan, test-unit, test-integration, security-scan]
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.push_to_registry == true)
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download bake metadata
+        uses: actions/download-artifact@v7
+        with:
+          name: bake-metadata
+          path: /tmp/bake-metadata
+
+      - name: Download all platform digests
+        uses: actions/download-artifact@v7
+        with:
+          pattern: digest-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq --raw-output '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' /tmp/bake-metadata/docker-metadata-action-bake.json) \
+            $(printf '${{ needs.plan.outputs.image-repo }}@sha256:%s ' *)
+
+      - name: Inspect manifest
+        run: docker buildx imagetools inspect ${{ needs.plan.outputs.image-repo }}
 
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs:
-      [lint-and-validate, build, test-unit, test-integration, security-scan]
+    needs: [lint-and-validate, plan, build, test-unit, test-integration, security-scan]
     if: always()
     steps:
       - name: Generate summary
@@ -298,6 +385,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Job Status" >> $GITHUB_STEP_SUMMARY
           echo "- Lint and Validate: ${{ needs.lint-and-validate.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Plan: ${{ needs.plan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Build: ${{ needs.build.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Unit Tests: ${{ needs.test-unit.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Integration Tests: ${{ needs.test-integration.result }}" >> $GITHUB_STEP_SUMMARY
