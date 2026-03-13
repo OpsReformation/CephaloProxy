@@ -63,7 +63,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        include:
+          - target: amd64-only
+            platform_tag: linux-amd64
+          - target: arm64-only
+            platform_tag: linux-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -71,50 +75,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Check BuildKit availability
-        run: |
-          if [ -n "$BUILDKIT_DISABLE" ]; then
-            echo "Error: Docker BuildKit is disabled. Set DOCKER_BUILDKIT=1 or create a buildx builder."
-            exit 1
-          fi
-          if ! docker buildx version > /dev/null 2>&1; then
-            echo "Error: Docker buildx is not available."
-            exit 1
-          fi
-          echo "BuildKit is available and ready for use"
-
-      - name: Build container image for ${{ matrix.platform }}
-        run: |
-          docker buildx build \
-            --load \
-            --platform ${{ matrix.platform }} \
-            --tag cephaloproxy:latest \
-            --file container/Dockerfile.distroless \
-            --build-arg DISTROLESS_BASE=gcr.io/distroless/python3-debian12 \
-            --build-arg DISTROLESS_BASE_SHA=sha256:8ce6bba3f793ba7d834467dfe18983c42f9b223604970273e9e3a22b1891fc27 \
-            --build-arg DEBIAN_VERSION=12 \
-            --build-arg BUILDPLATFORM=${{ matrix.platform }} \
-            --build-arg TARGETPLATFORM=${{ matrix.platform }} \
-            --cache-from type=gha \
-            --cache-to type=gha,mode=max,compression=zstd \
-            -- .
+      - name: Build container image (${{ matrix.target }})
+        uses: docker/bake-action@v6
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Save container image
-        id: save-image
         run: |
-          PLATFORM_TAG=$(echo "${{ matrix.platform }}" | tr '/' '-')
-          docker save cephaloproxy:latest -o /tmp/cephaloproxy-${PLATFORM_TAG}.tar
-          echo "platform_tag=${PLATFORM_TAG}" >> $GITHUB_OUTPUT
+          docker save cephaloproxy:latest -o /tmp/cephaloproxy-${{ matrix.platform_tag }}.tar
 
       - name: Upload container image artifact
         uses: actions/upload-artifact@v6
         with:
-          name: container-image-${{ steps.save-image.outputs.platform_tag }}
-          path: /tmp/cephaloproxy-${{ steps.save-image.outputs.platform_tag }}.tar
+          name: container-image-${{ matrix.platform_tag }}
+          path: /tmp/cephaloproxy-${{ matrix.platform_tag }}.tar
           retention-days: 1
-
-      # Prevent cache from growing indefinitely
-      # Note: GitHub Actions cache is managed by Docker BuildKit, no manual cleanup needed
 
   test-unit:
     name: Unit Tests
